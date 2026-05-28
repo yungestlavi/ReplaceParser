@@ -8,7 +8,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>SSForensic</AssemblyName>
     <RootNamespace>SSForensic</RootNamespace>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Authors>SS Forensic Team</Authors>
     <Description>Screen Sharer Forensic Tool - Detect application replaces and cheats</Description>
     <Platforms>x64</Platforms>

@@ -4,7 +4,7 @@
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vm="clr-namespace:SSForensic.ViewModels"
         Title="Forensic Services — status"
-        Height="780" Width="900"
+        Height="860" Width="940"
         WindowStartupLocation="CenterOwner"
         TextElement.Foreground="#FFFFFF"
         FontFamily="{materialDesign:MaterialDesignFont}">
@@ -77,14 +77,19 @@
                                         </StackPanel>
                                         <TextBlock Text="{Binding Description}" FontSize="12.5" Foreground="#E8E0F5"
                                                    TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                        <TextBlock FontSize="11.5" Foreground="#B39DDB" Margin="0,4,0,0"
+                                                   Visibility="{Binding HasExtraInfo, Converter={StaticResource BoolToVis}}"
+                                                   TextWrapping="Wrap" Text="{Binding ExtraInfo}"/>
                                     </StackPanel>
 
-                                    <!-- Status text + start type -->
+                                    <!-- Status text + start type + start time -->
                                     <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="16,0,0,0">
                                         <TextBlock Text="{Binding StatusText}" FontSize="15" FontWeight="Bold"
                                                    HorizontalAlignment="Right" Foreground="{Binding HealthColor}"/>
                                         <TextBlock Text="{Binding StartType}" FontSize="11" Foreground="#CFC2E8"
                                                    HorizontalAlignment="Right" Margin="0,2,0,0"/>
+                                        <TextBlock FontSize="11" Foreground="#CFC2E8" HorizontalAlignment="Right" Margin="0,2,0,0"
+                                                   Text="{Binding StartTimeText, StringFormat=started: {0}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
