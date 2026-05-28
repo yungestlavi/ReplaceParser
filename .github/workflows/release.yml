@@ -1,0 +1,71 @@
+name: Build & Release
+
+# Trigger:
+#  - push of a version tag (vX.Y.Z) creates a real GitHub Release with the asset.
+#  - manual run (workflow_dispatch) is allowed for testing.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # required to create the release
+
+jobs:
+  build-release:
+    name: Build self-contained Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore SSForensic/SSForensic.csproj
+
+      - name: Publish self-contained x64
+        run: >
+          dotnet publish SSForensic/SSForensic.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=false
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish
+
+      - name: Determine version
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if (-not $tag.StartsWith("v")) { $tag = "v0.0.0-dev" }
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Zip release asset
+        shell: pwsh
+        run: |
+          $asset = "ReplaceParser-${{ steps.ver.outputs.tag }}-win-x64.zip"
+          Compress-Archive -Path publish\* -DestinationPath $asset
+          echo "ASSET=$asset" >> $env:GITHUB_ENV
+
+      - name: Create / Update GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Replace Parser ${{ github.ref_name }}
+          generate_release_notes: true
+          files: ${{ env.ASSET }}
+
+      - name: Upload artifact (manual runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReplaceParser-${{ steps.ver.outputs.tag }}-win-x64
+          path: ${{ env.ASSET }}

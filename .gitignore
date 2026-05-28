@@ -1,0 +1,29 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+publish/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.swp
+
+# NuGet
+*.nupkg
+.nuget/
+packages/
+
+# Build logs / crash logs
+*.log
+crash.log
+
+# OS junk
+Thumbs.db
+.DS_Store
+
+# Local update staging (defensive)
+ReplaceParser_Update_*/
