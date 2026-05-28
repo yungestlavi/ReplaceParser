@@ -15,6 +15,14 @@
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
+  <!-- Single-file self-contained settings apply only when publishing.
+       The workflow passes -r win-x64; locally you can still build/run normally. -->
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
@@ -28,9 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Rules\cheats.yar">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <EmbeddedResource Include="Rules\cheats.yar" />
   </ItemGroup>
 
 </Project>

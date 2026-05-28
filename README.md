@@ -10,7 +10,7 @@
 
 Scarica l'ultima versione dalla pagina [**Releases**](https://github.com/yungestlavi/ReplaceParser/releases).
 
-Il pacchetto è **self-contained**: include già il runtime .NET, **non devi installare nulla**. Fai doppio click su `SSForensic.exe` e parte (richiede di essere eseguito come amministratore — il manifest lo richiede automaticamente).
+È **un singolo file `SSForensic.exe`** self-contained: include già il runtime .NET e le regole di rilevamento, **non devi installare nulla**. Scaricalo e fai doppio click (richiede di essere eseguito come amministratore — il manifest lo richiede automaticamente).
 
 ---
 
@@ -79,7 +79,7 @@ L'output è in `SSForensic/bin/Release/net8.0-windows/win-x64/publish/`.
 
 | Problema | Soluzione |
 |---|---|
-| "Devi installare .NET" all'avvio | Stai usando una build non self-contained. Scarica l'asset dalle Releases. |
+| "Devi installare .NET" all'avvio | Scarica `SSForensic.exe` dalle Releases (è self-contained, non richiede .NET). |
 | L'app non vede il journal USN | Avvia come amministratore (il manifest lo richiede di default). |
 | Nessun risultato | È normale se da ultimo boot non c'è stata nessuna scrittura sul drive. Apri qualcosa (anche solo Minecraft) e rilancia. |
 | Falso positivo su un file di sistema | Aprime un issue allegando lo screenshot del pannello dettagli. |

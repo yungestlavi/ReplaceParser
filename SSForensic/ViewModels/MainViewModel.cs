@@ -64,8 +64,7 @@ namespace SSForensic.ViewModels
                 Extensions.Add(new ExtensionToggle { Extension = ext, IsEnabled = defaultOn });
             }
 
-            string folder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Rules");
-            _yara.LoadRules(folder);
+            _yara.LoadRulesAuto();
 
             var boot = ForensicAnalyzer.GetLastBootTimeUtc();
             LastBootInfo = $"Last boot (UTC): {boot:u}";

@@ -1,7 +1,7 @@
 name: Build & Release
 
 # Trigger:
-#  - push of a version tag (vX.Y.Z) creates a real GitHub Release with the asset.
+#  - push of a version tag (vX.Y.Z) creates a real GitHub Release with the .exe asset.
 #  - manual run (workflow_dispatch) is allowed for testing.
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-release:
-    name: Build self-contained Windows x64
+    name: Build single-file self-contained Windows x64
     runs-on: windows-latest
 
     steps:
@@ -29,14 +29,15 @@ jobs:
       - name: Restore
         run: dotnet restore SSForensic/SSForensic.csproj
 
-      - name: Publish self-contained x64
+      - name: Publish single-file self-contained x64
         run: >
           dotnet publish SSForensic/SSForensic.csproj
           -c Release
           -r win-x64
           --self-contained true
-          -p:PublishSingleFile=false
+          -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
           -o publish
 
       - name: Determine version
@@ -47,11 +48,13 @@ jobs:
           if (-not $tag.StartsWith("v")) { $tag = "v0.0.0-dev" }
           echo "tag=$tag" >> $env:GITHUB_OUTPUT
 
-      - name: Zip release asset
+      - name: Stage the .exe asset
         shell: pwsh
         run: |
-          $asset = "ReplaceParser-${{ steps.ver.outputs.tag }}-win-x64.zip"
-          Compress-Archive -Path publish\* -DestinationPath $asset
+          $exe = "publish\SSForensic.exe"
+          if (-not (Test-Path $exe)) { throw "SSForensic.exe not found in publish output" }
+          $asset = "SSForensic-${{ steps.ver.outputs.tag }}.exe"
+          Copy-Item $exe $asset
           echo "ASSET=$asset" >> $env:GITHUB_ENV
 
       - name: Create / Update GitHub Release
@@ -67,5 +70,5 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v4
         with:
-          name: ReplaceParser-${{ steps.ver.outputs.tag }}-win-x64
+          name: SSForensic-${{ steps.ver.outputs.tag }}
           path: ${{ env.ASSET }}

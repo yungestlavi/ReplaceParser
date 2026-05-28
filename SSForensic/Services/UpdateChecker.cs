@@ -77,19 +77,22 @@ namespace SSForensic.Services
                 info.ReleaseUrl    = root.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? "" : "";
                 info.ReleaseNotes  = root.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "";
 
-                // Pick the .zip asset (we publish a self-contained zip per release).
+                // Pick the release asset to download.
                 if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
                 {
                     JsonElement? chosen = null;
+                    // Prefer a single-file .exe asset; fall back to a .zip if present.
+                    JsonElement? exeAsset = null;
+                    JsonElement? zipAsset = null;
                     foreach (var a in assets.EnumerateArray())
                     {
                         var name = a.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                        if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                        {
-                            chosen = a;
-                            break;
-                        }
+                        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && exeAsset == null)
+                            exeAsset = a;
+                        else if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && zipAsset == null)
+                            zipAsset = a;
                     }
+                    chosen = exeAsset ?? zipAsset;
                     if (chosen.HasValue)
                     {
                         info.AssetName        = chosen.Value.GetProperty("name").GetString() ?? "";
@@ -119,7 +122,9 @@ namespace SSForensic.Services
 
             string tempDir = Path.Combine(Path.GetTempPath(), "ReplaceParser_Update_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempDir);
-            string zipPath = Path.Combine(tempDir, info.AssetName.Length > 0 ? info.AssetName : "update.zip");
+
+            bool isExe = info.AssetName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+            string downloadPath = Path.Combine(tempDir, info.AssetName.Length > 0 ? info.AssetName : (isExe ? "update.exe" : "update.zip"));
 
             // --- 1) Download the asset with progress reporting ---
             using (var http = new HttpClient())
@@ -132,7 +137,7 @@ namespace SSForensic.Services
 
                 long total = resp.Content.Headers.ContentLength ?? info.AssetSize;
                 using var src = await resp.Content.ReadAsStreamAsync();
-                using var dst = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                using var dst = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
                 byte[] buf = new byte[81920];
                 long done = 0;
@@ -146,20 +151,30 @@ namespace SSForensic.Services
                 }
             }
 
-            // --- 2) Extract zip to a staging folder next to it ---
-            string extractDir = Path.Combine(tempDir, "extracted");
-            System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, extractDir);
-
-            // --- 3) Build the updater .bat that swaps files and restarts the app ---
+            // --- 2) Work out what needs copying and where ---
             string installDir = AppContext.BaseDirectory.TrimEnd('\\');
             string exePath    = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(installDir, "SSForensic.exe");
             int    pid        = Environment.ProcessId;
 
             string batPath = Path.Combine(tempDir, "apply_update.bat");
-            string bat = BuildUpdaterScript(pid, extractDir, installDir, exePath, tempDir);
+            string bat;
+
+            if (isExe)
+            {
+                // Single-file update: replace just the running exe with the downloaded one.
+                bat = BuildExeUpdaterScript(pid, downloadPath, exePath, tempDir);
+            }
+            else
+            {
+                // Zip update: extract and mirror the folder onto the install dir.
+                string extractDir = Path.Combine(tempDir, "extracted");
+                System.IO.Compression.ZipFile.ExtractToDirectory(downloadPath, extractDir);
+                bat = BuildFolderUpdaterScript(pid, extractDir, installDir, exePath, tempDir);
+            }
+
             File.WriteAllText(batPath, bat, new UTF8Encoding(false));
 
-            // --- 4) Launch the updater detached and exit our process ---
+            // --- 3) Launch the updater detached and exit our process ---
             var psi = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
@@ -173,17 +188,52 @@ namespace SSForensic.Services
         }
 
         /// <summary>
-        /// The updater script must wait for our process to die, copy the new files
-        /// over the install directory, restart the app, and clean up after itself.
+        /// Updater for a single-file .exe release: waits for our process to exit,
+        /// replaces the running exe with the freshly downloaded one, restarts it,
+        /// then cleans up the temp directory.
         /// </summary>
-        private static string BuildUpdaterScript(int pid, string newFilesDir, string installDir, string exePath, string tempDir)
+        private static string BuildExeUpdaterScript(int pid, string newExePath, string targetExePath, string tempDir)
         {
-            // A few notes on the script:
-            //  - We loop on tasklist until our PID is gone (rather than taskkill so we don't kill ourselves
-            //    if something goes wrong with PID detection on a slow machine).
-            //  - We robocopy /MIR to mirror the staged folder onto the install folder; /XO would skip
-            //    overwriting same-timestamp files, which we don't want.
-            //  - The script deletes its own temp directory only after relaunching the app.
+            var sb = new StringBuilder();
+            sb.AppendLine("@echo off");
+            sb.AppendLine("setlocal");
+            sb.AppendLine("title Replace Parser Updater");
+            sb.AppendLine();
+            sb.AppendLine(":wait_exit");
+            sb.AppendLine($"tasklist /FI \"PID eq {pid}\" 2>NUL | find /I \"{pid}\" >NUL");
+            sb.AppendLine("if not errorlevel 1 (");
+            sb.AppendLine("    timeout /t 1 /nobreak >NUL");
+            sb.AppendLine("    goto wait_exit");
+            sb.AppendLine(")");
+            sb.AppendLine();
+            sb.AppendLine("rem Give the OS a moment to release the exe lock.");
+            sb.AppendLine("timeout /t 1 /nobreak >NUL");
+            sb.AppendLine();
+            sb.AppendLine("rem Replace the old exe (retry a few times in case it is still locked).");
+            sb.AppendLine("set TRIES=0");
+            sb.AppendLine(":copy_loop");
+            sb.AppendLine($"copy /Y \"{newExePath}\" \"{targetExePath}\" >NUL");
+            sb.AppendLine("if errorlevel 1 (");
+            sb.AppendLine("    set /a TRIES+=1");
+            sb.AppendLine("    if %TRIES% LSS 10 (");
+            sb.AppendLine("        timeout /t 1 /nobreak >NUL");
+            sb.AppendLine("        goto copy_loop");
+            sb.AppendLine("    )");
+            sb.AppendLine(")");
+            sb.AppendLine();
+            sb.AppendLine($"start \"\" \"{targetExePath}\"");
+            sb.AppendLine();
+            sb.AppendLine($"rmdir /S /Q \"{tempDir}\" 2>NUL");
+            sb.AppendLine("exit /b 0");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Updater for a folder/zip release: mirrors the extracted folder onto the
+        /// install directory, restarts the app, and cleans up.
+        /// </summary>
+        private static string BuildFolderUpdaterScript(int pid, string newFilesDir, string installDir, string exePath, string tempDir)
+        {
             var sb = new StringBuilder();
             sb.AppendLine("@echo off");
             sb.AppendLine("setlocal");
@@ -203,7 +253,6 @@ namespace SSForensic.Services
             sb.AppendLine();
             sb.AppendLine($"start \"\" \"{exePath}\"");
             sb.AppendLine();
-            sb.AppendLine("rem Self-delete the temp dir (best-effort).");
             sb.AppendLine($"rmdir /S /Q \"{tempDir}\" 2>NUL");
             sb.AppendLine("exit /b 0");
             return sb.ToString();

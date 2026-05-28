@@ -59,6 +59,75 @@ namespace SSForensic.Services
             }
         }
 
+        /// <summary>
+        /// Parses rules directly from a string (used for embedded rules).
+        /// </summary>
+        public void LoadRulesFromString(string content)
+        {
+            try
+            {
+                foreach (var rule in ParseFile(content))
+                    _rules.Add(rule);
+            }
+            catch (Exception ex)
+            {
+                _ruleErrors.Add("embedded rules: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Loads rules from embedded resources first (so a single-file .exe needs
+        /// no external Rules\ folder), then merges any *.yar files found next to the
+        /// executable so users can still drop in extra rules.
+        /// </summary>
+        public void LoadRulesAuto()
+        {
+            _rules.Clear();
+            _ruleErrors.Clear();
+
+            // 1) Embedded resources (compiled into the assembly).
+            try
+            {
+                var asm = System.Reflection.Assembly.GetExecutingAssembly();
+                foreach (var name in asm.GetManifestResourceNames())
+                {
+                    if (name.EndsWith(".yar", StringComparison.OrdinalIgnoreCase) ||
+                        name.EndsWith(".yara", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using var stream = asm.GetManifestResourceStream(name);
+                        if (stream == null) continue;
+                        using var reader = new StreamReader(stream);
+                        LoadRulesFromString(reader.ReadToEnd());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _ruleErrors.Add("embedded scan: " + ex.Message);
+            }
+
+            // 2) Optional external Rules\ folder next to the exe (extra user rules).
+            try
+            {
+                string folder = Path.Combine(AppContext.BaseDirectory, "Rules");
+                if (Directory.Exists(folder))
+                {
+                    var files = new List<string>();
+                    files.AddRange(Directory.GetFiles(folder, "*.yar", SearchOption.AllDirectories));
+                    files.AddRange(Directory.GetFiles(folder, "*.yara", SearchOption.AllDirectories));
+                    foreach (var file in files)
+                    {
+                        try { LoadRulesFromString(File.ReadAllText(file)); }
+                        catch (Exception ex) { _ruleErrors.Add($"{Path.GetFileName(file)}: {ex.Message}"); }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _ruleErrors.Add("external scan: " + ex.Message);
+            }
+        }
+
         private static IEnumerable<CompiledRule> ParseFile(string text)
         {
             text = Regex.Replace(text, @"/\*.*?\*/", "", RegexOptions.Singleline);
