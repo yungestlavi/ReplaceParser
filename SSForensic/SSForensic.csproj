@@ -6,9 +6,10 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>SSForensic</AssemblyName>
     <RootNamespace>SSForensic</RootNamespace>
-    <Version>1.2.2</Version>
+    <Version>1.2.3</Version>
     <Authors>SS Forensic Team</Authors>
     <Description>Screen Sharer Forensic Tool - Detect application replaces and cheats</Description>
     <Platforms>x64</Platforms>
