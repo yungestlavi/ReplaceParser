@@ -102,135 +102,15 @@
                 <Setter Property="Foreground" Value="#B8E5DA"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Padding" Value="20,9"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="b" Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="2">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                  Margin="{TemplateBinding Padding}"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="b" Property="Background" Value="#264842"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="b" Property="Background" Value="#193430"/>
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="b" Property="Opacity" Value="0.4"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
             </Style>
 
-            <!-- Filter chip (active state set in markup by Tag-style trigger isn't worth it; just use 2 styles) -->
+            <!-- Filter chip -->
             <Style x:Key="FilterChip" TargetType="Button" BasedOn="{StaticResource FlatButton}">
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="BorderBrush" Value="Transparent"/>
                 <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
                 <Setter Property="Padding" Value="10,5"/>
                 <Setter Property="FontSize" Value="12"/>
-            </Style>
-
-            <!-- TextBox -->
-            <Style TargetType="TextBox">
-                <Setter Property="Background" Value="#1A1A22"/>
-                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource Border1}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Padding" Value="8,5"/>
-                <Setter Property="CaretBrush" Value="{StaticResource Accent}"/>
-                <Setter Property="FontFamily" Value="Segoe UI"/>
-                <Setter Property="FontSize" Value="12.5"/>
-            </Style>
-
-            <!-- CheckBox: minimal -->
-            <Style TargetType="CheckBox">
-                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-            </Style>
-
-            <!-- DataGrid -->
-            <Style TargetType="DataGrid">
-                <Setter Property="Background" Value="{StaticResource BgPanel}"/>
-                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource Border1}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="GridLinesVisibility" Value="None"/>
-                <Setter Property="HeadersVisibility" Value="Column"/>
-                <Setter Property="RowBackground" Value="{StaticResource BgRow}"/>
-                <Setter Property="AlternatingRowBackground" Value="{StaticResource BgRowAlt}"/>
-                <Setter Property="RowHeight" Value="24"/>
-                <Setter Property="FontFamily" Value="Segoe UI"/>
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="HorizontalGridLinesBrush" Value="#22222A"/>
-            </Style>
-
-            <Style TargetType="DataGridColumnHeader">
-                <Setter Property="Background" Value="#1B1B22"/>
-                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
-                <Setter Property="FontWeight" Value="Normal"/>
-                <Setter Property="FontSize" Value="11"/>
-                <Setter Property="Padding" Value="10,6"/>
-                <Setter Property="BorderBrush" Value="{StaticResource Border1}"/>
-                <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            </Style>
-
-            <Style TargetType="DataGridCell">
-                <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="Padding" Value="10,3"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="DataGridCell">
-                            <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                                <ContentPresenter VerticalAlignment="Center"/>
-                            </Border>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-                <Style.Triggers>
-                    <Trigger Property="IsSelected" Value="True">
-                        <Setter Property="Background" Value="#243441"/>
-                        <Setter Property="Foreground" Value="#FFFFFF"/>
-                    </Trigger>
-                </Style.Triggers>
-            </Style>
-
-            <Style TargetType="DataGridRow">
-                <Setter Property="Background" Value="{StaticResource BgRow}"/>
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Background" Value="#1F1F28"/>
-                    </Trigger>
-                </Style.Triggers>
-            </Style>
-
-            <!-- ProgressBar minimal -->
-            <Style TargetType="ProgressBar">
-                <Setter Property="Background" Value="#1A1A22"/>
-                <Setter Property="Foreground" Value="{StaticResource Accent}"/>
-                <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="Height" Value="4"/>
-            </Style>
-
-            <!-- ScrollBar minimal (thin) -->
-            <Style TargetType="ScrollBar">
-                <Setter Property="Background" Value="Transparent"/>
-                <Setter Property="Width" Value="10"/>
-                <Style.Triggers>
-                    <Trigger Property="Orientation" Value="Horizontal">
-                        <Setter Property="Height" Value="10"/>
-                        <Setter Property="Width" Value="Auto"/>
-                    </Trigger>
-                </Style.Triggers>
             </Style>
 
         </ResourceDictionary>
