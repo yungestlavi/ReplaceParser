@@ -7,7 +7,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <materialDesign:BundledTheme BaseTheme="Dark" PrimaryColor="DeepPurple" SecondaryColor="Lime" />
+                <materialDesign:BundledTheme BaseTheme="Dark" PrimaryColor="Grey" SecondaryColor="Grey" />
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
@@ -17,11 +17,222 @@
             <conv:BoolToVisConverter x:Key="BoolToVis"/>
             <conv:HasRunToScrimOpacityConverter x:Key="HasRunToScrim"/>
 
-            <SolidColorBrush x:Key="ColorReplaceWithJava" Color="#E53935"/>
-            <SolidColorBrush x:Key="ColorOriginalCheat"  Color="#1E88E5"/>
-            <SolidColorBrush x:Key="ColorOriginalLegit"  Color="#43A047"/>
-            <SolidColorBrush x:Key="ColorNoSignature"    Color="#FB8C00"/>
-            <SolidColorBrush x:Key="ColorExtSpoofed"     Color="#8E24AA"/>
+            <!-- Trust dots (used by TrustToBrushConverter through the same brush keys) -->
+            <SolidColorBrush x:Key="ColorReplaceWithJava" Color="#E06C75"/>
+            <SolidColorBrush x:Key="ColorOriginalCheat"   Color="#61AFEF"/>
+            <SolidColorBrush x:Key="ColorOriginalLegit"   Color="#98C379"/>
+            <SolidColorBrush x:Key="ColorNoSignature"     Color="#D19A66"/>
+            <SolidColorBrush x:Key="ColorExtSpoofed"      Color="#C678DD"/>
+
+            <!-- Dev-tool palette -->
+            <SolidColorBrush x:Key="BgBase"        Color="#0E0E12"/>
+            <SolidColorBrush x:Key="BgPanel"       Color="#15151A"/>
+            <SolidColorBrush x:Key="BgPanelAlt"    Color="#1A1A20"/>
+            <SolidColorBrush x:Key="BgRow"         Color="#13131A"/>
+            <SolidColorBrush x:Key="BgRowAlt"      Color="#17171E"/>
+            <SolidColorBrush x:Key="Border1"       Color="#2A2A33"/>
+            <SolidColorBrush x:Key="Border2"       Color="#3A3A45"/>
+            <SolidColorBrush x:Key="TextPrimary"   Color="#D4D4D4"/>
+            <SolidColorBrush x:Key="TextSecondary" Color="#9A9AA8"/>
+            <SolidColorBrush x:Key="TextMuted"     Color="#6E6E7A"/>
+            <SolidColorBrush x:Key="Accent"        Color="#4EC9B0"/>
+            <SolidColorBrush x:Key="AccentDim"     Color="#3A8E80"/>
+
+            <!-- Headline text style -->
+            <Style x:Key="TitleText" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="20"/>
+                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="Foreground" Value="#E6E6E6"/>
+            </Style>
+
+            <Style x:Key="LabelText" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            </Style>
+
+            <Style x:Key="MonoText" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New, monospace"/>
+                <Setter Property="FontSize" Value="11.5"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            </Style>
+
+            <!-- Flat dev-style button -->
+            <Style x:Key="FlatButton" TargetType="Button">
+                <Setter Property="Background" Value="#1F1F27"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Border1}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12,6"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="b" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="2">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Margin="{TemplateBinding Padding}"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#262630"/>
+                                    <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Border2}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#1A1A22"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="b" Property="Opacity" Value="0.4"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Primary action button (Run, etc.) -->
+            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource FlatButton}">
+                <Setter Property="Background" Value="#1E3A36"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AccentDim}"/>
+                <Setter Property="Foreground" Value="#B8E5DA"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Padding" Value="20,9"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="b" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="2">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Margin="{TemplateBinding Padding}"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#264842"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#193430"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="b" Property="Opacity" Value="0.4"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Filter chip (active state set in markup by Tag-style trigger isn't worth it; just use 2 styles) -->
+            <Style x:Key="FilterChip" TargetType="Button" BasedOn="{StaticResource FlatButton}">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+                <Setter Property="Padding" Value="10,5"/>
+                <Setter Property="FontSize" Value="12"/>
+            </Style>
+
+            <!-- TextBox -->
+            <Style TargetType="TextBox">
+                <Setter Property="Background" Value="#1A1A22"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Border1}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="8,5"/>
+                <Setter Property="CaretBrush" Value="{StaticResource Accent}"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="12.5"/>
+            </Style>
+
+            <!-- CheckBox: minimal -->
+            <Style TargetType="CheckBox">
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <!-- DataGrid -->
+            <Style TargetType="DataGrid">
+                <Setter Property="Background" Value="{StaticResource BgPanel}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Border1}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="GridLinesVisibility" Value="None"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="RowBackground" Value="{StaticResource BgRow}"/>
+                <Setter Property="AlternatingRowBackground" Value="{StaticResource BgRowAlt}"/>
+                <Setter Property="RowHeight" Value="24"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#22222A"/>
+            </Style>
+
+            <Style TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="#1B1B22"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Border1}"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
+
+            <Style TargetType="DataGridCell">
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="10,3"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="DataGridCell">
+                            <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#243441"/>
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style TargetType="DataGridRow">
+                <Setter Property="Background" Value="{StaticResource BgRow}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#1F1F28"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- ProgressBar minimal -->
+            <Style TargetType="ProgressBar">
+                <Setter Property="Background" Value="#1A1A22"/>
+                <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Height" Value="4"/>
+            </Style>
+
+            <!-- ScrollBar minimal (thin) -->
+            <Style TargetType="ScrollBar">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Width" Value="10"/>
+                <Style.Triggers>
+                    <Trigger Property="Orientation" Value="Horizontal">
+                        <Setter Property="Height" Value="10"/>
+                        <Setter Property="Width" Value="Auto"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>
