@@ -414,16 +414,17 @@
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid Width="80" Height="80" HorizontalAlignment="Center" Margin="0,0,0,18">
                     <Ellipse Stroke="#3D4147" StrokeThickness="3"/>
-                    <Path Stroke="#5FA8D3" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                          Data="M 40 4 A 36 36 0 1 1 4 40">
+                    <Path x:Name="Spinner" Stroke="#5FA8D3" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                          Data="M 40 4 A 36 36 0 1 1 4 40" RenderTransformOrigin="0.5,0.5">
                         <Path.RenderTransform>
-                            <RotateTransform x:Name="SpinnerRot" CenterX="40" CenterY="40" Angle="0"/>
+                            <RotateTransform Angle="0"/>
                         </Path.RenderTransform>
                         <Path.Triggers>
                             <EventTrigger RoutedEvent="FrameworkElement.Loaded">
                                 <BeginStoryboard>
                                     <Storyboard RepeatBehavior="Forever">
-                                        <DoubleAnimation Storyboard.TargetName="SpinnerRot" Storyboard.TargetProperty="Angle"
+                                        <DoubleAnimation Storyboard.TargetName="Spinner"
+                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
                                                          From="0" To="360" Duration="0:0:1.2"/>
                                     </Storyboard>
                                 </BeginStoryboard>
