@@ -17,56 +17,56 @@
             <conv:BoolToVisConverter x:Key="BoolToVis"/>
             <conv:HasRunToScrimOpacityConverter x:Key="HasRunToScrim"/>
 
-            <!-- Trust dots (used by TrustToBrushConverter through the same brush keys) -->
+            <!-- Trust dot colors -->
             <SolidColorBrush x:Key="ColorReplaceWithJava" Color="#E06C75"/>
             <SolidColorBrush x:Key="ColorOriginalCheat"   Color="#61AFEF"/>
-            <SolidColorBrush x:Key="ColorOriginalLegit"   Color="#98C379"/>
-            <SolidColorBrush x:Key="ColorNoSignature"     Color="#D19A66"/>
+            <SolidColorBrush x:Key="ColorOriginalLegit"   Color="#7EC07E"/>
+            <SolidColorBrush x:Key="ColorNoSignature"     Color="#E06C75"/>
             <SolidColorBrush x:Key="ColorExtSpoofed"      Color="#C678DD"/>
 
-            <!-- Dev-tool palette -->
-            <SolidColorBrush x:Key="BgBase"        Color="#0E0E12"/>
-            <SolidColorBrush x:Key="BgPanel"       Color="#15151A"/>
-            <SolidColorBrush x:Key="BgPanelAlt"    Color="#1A1A20"/>
-            <SolidColorBrush x:Key="BgRow"         Color="#13131A"/>
-            <SolidColorBrush x:Key="BgRowAlt"      Color="#17171E"/>
-            <SolidColorBrush x:Key="Border1"       Color="#2A2A33"/>
-            <SolidColorBrush x:Key="Border2"       Color="#3A3A45"/>
-            <SolidColorBrush x:Key="TextPrimary"   Color="#D4D4D4"/>
-            <SolidColorBrush x:Key="TextSecondary" Color="#9A9AA8"/>
-            <SolidColorBrush x:Key="TextMuted"     Color="#6E6E7A"/>
-            <SolidColorBrush x:Key="Accent"        Color="#4EC9B0"/>
-            <SolidColorBrush x:Key="AccentDim"     Color="#3A8E80"/>
+            <!-- Forensic-tool palette (PrefetchView++ / BAM parser style) -->
+            <SolidColorBrush x:Key="BgBase"        Color="#2A2D31"/>
+            <SolidColorBrush x:Key="BgHeader"      Color="#33363B"/>
+            <SolidColorBrush x:Key="BgPanel"       Color="#2F3236"/>
+            <SolidColorBrush x:Key="BgPanelAlt"    Color="#2A2D31"/>
+            <SolidColorBrush x:Key="BgRow"         Color="#2A2D31"/>
+            <SolidColorBrush x:Key="BgRowAlt"      Color="#2F3236"/>
+            <SolidColorBrush x:Key="BgSelected"    Color="#3D4148"/>
+            <SolidColorBrush x:Key="Border1"       Color="#3D4147"/>
+            <SolidColorBrush x:Key="Border2"       Color="#4A4E55"/>
+            <SolidColorBrush x:Key="TextPrimary"   Color="#D7D7D7"/>
+            <SolidColorBrush x:Key="TextSecondary" Color="#A0A0A0"/>
+            <SolidColorBrush x:Key="TextMuted"     Color="#7A7A7A"/>
+            <SolidColorBrush x:Key="Accent"        Color="#5FA8D3"/>
+            <SolidColorBrush x:Key="AccentDim"     Color="#3A6E8E"/>
+            <SolidColorBrush x:Key="SignedGreen"   Color="#7EC07E"/>
+            <SolidColorBrush x:Key="UnsignedRed"   Color="#E06C75"/>
 
-            <!-- Headline text style -->
+            <!-- Named text styles used via x:Key (never implicit) -->
             <Style x:Key="TitleText" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="Segoe UI"/>
-                <Setter Property="FontSize" Value="20"/>
-                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontSize" Value="18"/>
                 <Setter Property="Foreground" Value="#E6E6E6"/>
             </Style>
-
             <Style x:Key="LabelText" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="FontSize" Value="11"/>
-                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+                <Setter Property="Foreground" Value="#A0A0A0"/>
             </Style>
-
             <Style x:Key="MonoText" TargetType="TextBlock">
-                <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New, monospace"/>
+                <Setter Property="FontFamily" Value="Consolas, Courier New, monospace"/>
                 <Setter Property="FontSize" Value="11.5"/>
-                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                <Setter Property="Foreground" Value="#D7D7D7"/>
             </Style>
 
-            <!-- Flat dev-style button -->
+            <!-- Named button styles (referenced explicitly, safe) -->
             <Style x:Key="FlatButton" TargetType="Button">
-                <Setter Property="Background" Value="#1F1F27"/>
-                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource Border1}"/>
+                <Setter Property="Background" Value="#3D4147"/>
+                <Setter Property="Foreground" Value="#D7D7D7"/>
+                <Setter Property="BorderBrush" Value="#3D4147"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Padding" Value="12,6"/>
                 <Setter Property="FontSize" Value="12"/>
-                <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="Cursor" Value="Hand"/>
                 <Setter Property="Template">
                     <Setter.Value>
@@ -80,11 +80,10 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="b" Property="Background" Value="#262630"/>
-                                    <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Border2}"/>
+                                    <Setter TargetName="b" Property="Background" Value="#474B52"/>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="b" Property="Background" Value="#1A1A22"/>
+                                    <Setter TargetName="b" Property="Background" Value="#34383E"/>
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
                                     <Setter TargetName="b" Property="Opacity" Value="0.4"/>
@@ -94,23 +93,10 @@
                     </Setter.Value>
                 </Setter>
             </Style>
-
-            <!-- Primary action button (Run, etc.) -->
-            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource FlatButton}">
-                <Setter Property="Background" Value="#1E3A36"/>
-                <Setter Property="BorderBrush" Value="{StaticResource AccentDim}"/>
-                <Setter Property="Foreground" Value="#B8E5DA"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="Padding" Value="20,9"/>
-            </Style>
-
-            <!-- Filter chip -->
+            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource FlatButton}"/>
             <Style x:Key="FilterChip" TargetType="Button" BasedOn="{StaticResource FlatButton}">
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="BorderBrush" Value="Transparent"/>
-                <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
-                <Setter Property="Padding" Value="10,5"/>
-                <Setter Property="FontSize" Value="12"/>
             </Style>
 
         </ResourceDictionary>
