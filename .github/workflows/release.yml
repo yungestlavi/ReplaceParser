@@ -38,6 +38,9 @@ jobs:
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
+          -p:SatelliteResourceLanguages=en
           -o publish
 
       - name: Determine version

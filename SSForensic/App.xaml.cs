@@ -40,7 +40,15 @@ namespace SSForensic
                 args.SetObserved();
             };
 
-            base.OnStartup(e);
+            try
+            {
+                base.OnStartup(e);
+            }
+            catch (Exception ex)
+            {
+                LogCrash("OnStartup (window construction)", ex);
+                Shutdown();
+            }
         }
 
         private static void OpenDotNetDownload()

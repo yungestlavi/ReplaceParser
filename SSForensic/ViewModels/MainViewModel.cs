@@ -64,10 +64,36 @@ namespace SSForensic.ViewModels
                 Extensions.Add(new ExtensionToggle { Extension = ext, IsEnabled = defaultOn });
             }
 
-            _yara.LoadRulesAuto();
+            // Anything below can touch the filesystem / OS and must never crash the
+            // constructor, otherwise the whole window fails to load (XamlParseException).
+            try { _yara.LoadRulesAuto(); }
+            catch (Exception ex) { StatusText = "Rule load warning: " + ex.Message; }
 
-            var boot = ForensicAnalyzer.GetLastBootTimeUtc();
-            LastBootInfo = $"Last boot (UTC): {boot:u}";
+            try
+            {
+                var boot = ForensicAnalyzer.GetLastBootTimeUtc();
+                LastBootInfo = $"Last boot (UTC): {boot:u}";
+            }
+            catch { LastBootInfo = "Last boot: unknown"; }
+
+            // Auto-start the analysis once the app is idle and the window is up.
+            // BeginInvoke at Background priority guarantees the UI has rendered first,
+            // and the whole thing is guarded so a failure can never take down startup.
+            try
+            {
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                    System.Windows.Threading.DispatcherPriority.Background,
+                    new Action(() =>
+                    {
+                        try
+                        {
+                            if (RunAnalysisCommand.CanExecute(null))
+                                RunAnalysisCommand.Execute(null);
+                        }
+                        catch (Exception ex) { StatusText = "Auto-start failed: " + ex.Message; }
+                    }));
+            }
+            catch { /* if no dispatcher yet, the user can still press Parse again */ }
         }
 
         partial void OnSelectedRecordChanged(ReplaceRecord? value)
@@ -99,7 +125,7 @@ namespace SSForensic.ViewModels
                     StringComparer.OrdinalIgnoreCase);
                 _analyzer.DetectSuspiciousExtensions = DetectSuspiciousExt;
 
-                StatusText = "Scanning since last boot...";
+                StatusText = "Parsing replaces...";
                 var results = await _analyzer.AnalyzeAsync(DriveLetter, _cts.Token);
                 ApplyFilters(results);
                 UpdateStats(results);
