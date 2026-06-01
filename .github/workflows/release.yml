@@ -54,10 +54,6 @@ jobs:
           $ver = "${{ steps.ver.outputs.tag }}".TrimStart('v')
           $asset = "ReplaceParser.$ver.exe"
           Copy-Item $exe $asset
-          # Include the launcher that checks for .NET and redirects to the download page
-          if (Test-Path "Launch-ReplaceParser.bat") {
-            Copy-Item "Launch-ReplaceParser.bat" "Launch-ReplaceParser.bat"
-          }
           echo "ASSET=$asset" >> $env:GITHUB_ENV
 
       - name: Create / Update GitHub Release
