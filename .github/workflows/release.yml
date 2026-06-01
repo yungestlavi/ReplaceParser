@@ -1,8 +1,5 @@
 name: Build & Release
 
-# Trigger:
-#  - push of a version tag (vX.Y.Z) creates a real GitHub Release with the .exe asset.
-#  - manual run (workflow_dispatch) is allowed for testing.
 on:
   push:
     tags:
@@ -10,11 +7,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # required to create the release
+  contents: write
 
 jobs:
   build-release:
-    name: Build single-file self-contained Windows x64
+    name: Build framework-dependent Windows x64
     runs-on: windows-latest
 
     steps:
@@ -29,15 +26,13 @@ jobs:
       - name: Restore
         run: dotnet restore SSForensic/SSForensic.csproj
 
-      - name: Publish single-file self-contained x64
+      - name: Publish framework-dependent single-file x64
         run: >
           dotnet publish SSForensic/SSForensic.csproj
           -c Release
           -r win-x64
-          --self-contained true
+          --self-contained false
           -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
           -p:DebugType=none
           -p:DebugSymbols=false
           -p:SatelliteResourceLanguages=en
@@ -51,7 +46,7 @@ jobs:
           if (-not $tag.StartsWith("v")) { $tag = "v0.0.0-dev" }
           echo "tag=$tag" >> $env:GITHUB_OUTPUT
 
-      - name: Stage the .exe asset
+      - name: Stage release assets
         shell: pwsh
         run: |
           $exe = "publish\SSForensic.exe"
@@ -59,6 +54,10 @@ jobs:
           $ver = "${{ steps.ver.outputs.tag }}".TrimStart('v')
           $asset = "ReplaceParser.$ver.exe"
           Copy-Item $exe $asset
+          # Include the launcher that checks for .NET and redirects to the download page
+          if (Test-Path "Launch-ReplaceParser.bat") {
+            Copy-Item "Launch-ReplaceParser.bat" "Launch-ReplaceParser.bat"
+          }
           echo "ASSET=$asset" >> $env:GITHUB_ENV
 
       - name: Create / Update GitHub Release
@@ -68,11 +67,15 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Replace Parser ${{ github.ref_name }}
           generate_release_notes: true
-          files: ${{ env.ASSET }}
+          files: |
+            ${{ env.ASSET }}
+            Launch-ReplaceParser.bat
 
       - name: Upload artifact (manual runs)
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v4
         with:
           name: ReplaceParser-${{ steps.ver.outputs.tag }}
-          path: ${{ env.ASSET }}
+          path: |
+            ${{ env.ASSET }}
+            Launch-ReplaceParser.bat

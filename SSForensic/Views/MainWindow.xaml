@@ -295,27 +295,28 @@
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="USN TIMELINE" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="12,10,12,6"/>
                             <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedEvidence}" AutoGenerateColumns="False" IsReadOnly="True"
-                                      Background="Transparent" BorderThickness="0" RowHeight="20"
+                                      Background="Transparent" BorderThickness="0"
                                       RowBackground="{StaticResource BgRow}" AlternatingRowBackground="{StaticResource BgRowAlt}"
-                                      Foreground="{StaticResource TextPrimary}" GridLinesVisibility="None"
+                                      Foreground="{StaticResource TextPrimary}" GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="#3D4147"
                                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
                                       CanUserResizeColumns="True" CanUserSortColumns="True"
-                                      materialDesign:DataGridAssist.CellPadding="8,2"
+                                      materialDesign:DataGridAssist.CellPadding="8,4"
                                       materialDesign:DataGridAssist.ColumnHeaderPadding="8,4">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="When" Binding="{Binding Timestamp, StringFormat=yyyy-MM-dd HH:mm:ss}" Width="155">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Consolas"/><Setter Property="FontSize" Value="11"/></Style>
+                                            <Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Consolas"/><Setter Property="FontSize" Value="11"/><Setter Property="VerticalAlignment" Value="Top"/></Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="Reason / Pattern" Binding="{Binding Description}" Width="*">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Margin" Value="0,2"/></Style>
+                                            <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="VerticalAlignment" Value="Top"/></Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="Raw" Binding="{Binding RawData}" Width="220">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Consolas"/><Setter Property="FontSize" Value="11"/><Setter Property="Opacity" Value="0.8"/></Style>
+                                            <Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Consolas"/><Setter Property="FontSize" Value="11"/><Setter Property="Opacity" Value="0.8"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="VerticalAlignment" Value="Top"/></Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                 </DataGrid.Columns>

@@ -9,19 +9,11 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>SSForensic</AssemblyName>
     <RootNamespace>SSForensic</RootNamespace>
-    <Version>1.3.1</Version>
+    <Version>1.3.2</Version>
     <Authors>SS Forensic Team</Authors>
     <Description>Screen Sharer Forensic Tool - Detect application replaces and cheats</Description>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
-  </PropertyGroup>
-
-  <!-- Single-file self-contained settings apply only when publishing.
-       The workflow passes -r win-x64; locally you can still build/run normally. -->
-  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
-    <SelfContained>true</SelfContained>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
