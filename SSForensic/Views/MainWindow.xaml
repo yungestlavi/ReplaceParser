@@ -433,7 +433,7 @@
                         </Path.Triggers>
                     </Path>
                 </Grid>
-                <TextBlock Text="Parsing Prefetch..." Foreground="#8FA5BD" FontSize="15"
+                <TextBlock Text="Parsing Replaces..." Foreground="#8FA5BD" FontSize="15"
                            HorizontalAlignment="Center" FontFamily="Segoe UI"/>
             </StackPanel>
         </Grid>

@@ -125,7 +125,7 @@ namespace SSForensic.ViewModels
                     StringComparer.OrdinalIgnoreCase);
                 _analyzer.DetectSuspiciousExtensions = DetectSuspiciousExt;
 
-                StatusText = "Parsing Prefetch...";
+                StatusText = "Parsing Replaces...";
                 var results = await _analyzer.AnalyzeAsync(DriveLetter, _cts.Token);
                 ApplyFilters(results);
                 UpdateStats(results);
