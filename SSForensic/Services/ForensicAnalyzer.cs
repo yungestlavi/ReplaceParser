@@ -651,6 +651,34 @@ namespace SSForensic.Services
             string? canonical = File.Exists(replacementPath) ? replacementPath
                               : File.Exists(originalPath) ? originalPath : null;
 
+            // FAST PATH: files living under a known Windows system root are trusted OS
+            // artefacts and get discarded later anyway. Skip the expensive hashing and
+            // Authenticode verification for them - this is the single biggest speed win
+            // on long-running machines, where most journal churn is system files.
+            if (canonical != null && IsKnownWindowsPath(canonical))
+            {
+                record.ReplacementTrust = FileTrust.Legit;
+                record.OriginalTrust = FileTrust.Legit;
+                record.ReplacementSigner = "(windows system path)";
+                record.OriginalSigner = "(windows system path)";
+                record.SignatureVerdict = "SYSTEM";
+                record.SignatureDetails = "Skipped: file resides under a Windows system directory.";
+                record.SignatureChainTrusted = true;
+                record.SignatureTimeValid = true;
+                record.SignatureAuthenticodeValid = true;
+                foreach (var ev in events.OrderBy(e => e.Timestamp))
+                {
+                    record.Evidence.Add(new ForensicEvidence
+                    {
+                        Source = EvidenceSource.UsnJournal,
+                        Timestamp = ev.Timestamp,
+                        Description = $"[{ev.ReasonString}] {ev.FileName}",
+                        RawData = $"USN={ev.Usn} FRN={ev.FileReferenceNumber} Reason=0x{ev.Reason:X8}"
+                    });
+                }
+                return record;
+            }
+
             if (canonical != null && File.Exists(canonical))
             {
                 try

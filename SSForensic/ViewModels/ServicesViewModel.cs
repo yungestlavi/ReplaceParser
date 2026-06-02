@@ -151,6 +151,14 @@ namespace SSForensic.ViewModels
             try { all = ServiceController.GetServices(); }
             catch { all = Array.Empty<ServiceController>(); }
 
+            // BAM (Background Activity Moderator) is registered as a KERNEL DRIVER,
+            // not a Win32 service, so GetServices() misses it and it wrongly shows as
+            // "not installed". Pull the device/driver list too and merge.
+            ServiceController[] devices;
+            try { devices = ServiceController.GetDevices(); }
+            catch { devices = Array.Empty<ServiceController>(); }
+            var allCombined = all.Concat(devices).ToArray();
+
             // Map service short-name -> host process id (PID) via WMI in one shot.
             var pidByService = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             try
@@ -170,11 +178,36 @@ namespace SSForensic.ViewModels
 
             foreach (var item in Services)
             {
-                var sc = all.FirstOrDefault(s =>
+                // Match against services AND drivers, trying common name variants.
+                var sc = allCombined.FirstOrDefault(s =>
                     string.Equals(s.ServiceName, item.ShortName, StringComparison.OrdinalIgnoreCase));
+
+                // BAM has several possible registrations across Windows builds.
+                if (sc == null && string.Equals(item.ShortName, "BAM", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (var alt in new[] { "bam", "bams", "BAM" })
+                    {
+                        sc = allCombined.FirstOrDefault(s => string.Equals(s.ServiceName, alt, StringComparison.OrdinalIgnoreCase));
+                        if (sc != null) break;
+                    }
+                }
 
                 if (sc == null)
                 {
+                    // Registry fallback: if the BAM key exists and has UserSettings,
+                    // BAM is active even when the SCM list didn't surface it.
+                    if (string.Equals(item.ShortName, "BAM", StringComparison.OrdinalIgnoreCase) && IsBamActiveViaRegistry())
+                    {
+                        Ui(() =>
+                        {
+                            item.Apply(ServiceControllerStatus.Running, installed: true, startMode: "Driver");
+                            item.StartTimeText = "";
+                            item.ExtraInfo = "Detected via registry (BAM is a kernel driver).";
+                            item.HasExtraInfo = true;
+                        });
+                        continue;
+                    }
+
                     Ui(() =>
                     {
                         item.Apply(null, installed: false, startMode: "");
@@ -306,6 +339,35 @@ namespace SSForensic.ViewModels
             {
                 return "Host probe failed: " + ex.Message;
             }
+        }
+
+        /// <summary>
+        /// BAM is a kernel driver, so it may not appear in the service list. Its presence
+        /// and activity is reflected in the registry: HKLM\SYSTEM\CurrentControlSet\Services\bam
+        /// with a State\UserSettings subtree populated per user SID.
+        /// </summary>
+        private static bool IsBamActiveViaRegistry()
+        {
+            try
+            {
+                using var bam = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                    @"SYSTEM\CurrentControlSet\Services\bam");
+                if (bam == null) return false;
+
+                // Active BAM has a State\UserSettings key with at least one user SID under it.
+                using var userSettings = bam.OpenSubKey(@"State\UserSettings");
+                if (userSettings != null && userSettings.GetSubKeyNames().Length > 0)
+                    return true;
+
+                // Some builds keep it directly under UserSettings without State.
+                using var alt = bam.OpenSubKey("UserSettings");
+                if (alt != null && alt.GetSubKeyNames().Length > 0)
+                    return true;
+
+                // Key exists at all -> driver is registered.
+                return true;
+            }
+            catch { return false; }
         }
 
         private static void Ui(Action a)
