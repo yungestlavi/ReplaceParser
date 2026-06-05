@@ -8,7 +8,7 @@ Made by yungestlavi.
 
 ## Download
 
-Grab the latest build from the [Releases](https://github.com/yungestlavi/ReplaceParser/releases) page. Each release is a single `SSForensic.exe`. The .NET runtime and the detection rules are baked into that one file, so there is nothing to install and no extra folder to keep next to it. Download it, right click, run as administrator. The manifest already requests elevation, so Windows will prompt for it on its own. The elevation is needed to read the NTFS change journal; without it the scan comes back empty.
+Grab the latest build from the [Releases](https://github.com/yungestlavi/ReplaceParser/releases) page. Each release is a single `Replace Parser.exe`. The .NET runtime and the detection rules are baked into that one file, so there is nothing to install and no extra folder to keep next to it. Download it, right click, run as administrator. The manifest already requests elevation, so Windows will prompt for it on its own. The elevation is needed to read the NTFS change journal; without it the scan comes back empty.
 
 ## What it actually looks at
 
