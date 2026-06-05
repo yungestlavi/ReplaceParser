@@ -27,7 +27,7 @@ A naive version of this tool would flag half of Windows. Several filters keep th
 
 ## Using it
 
-1. Run `SSForensic.exe` as administrator.
+1. Run `Replace Parser.exe` as administrator.
 2. Leave the drive set to `C` unless Minecraft or the suspect file live on another disk.
 3. Pick the extensions to scan. `.exe`, `.jar`, `.dll`, `.py` and `.bat` are on by default. The rest (`.ps1`, `.vbs`, `.js`, `.class`, `.pyc`, `.cmd`, `.lua`, `.sys`) are optional. The "Modified extensions" checkbox turns on a more aggressive check against non-standard extensions; it catches more but it is noisier.
 4. Press Run Analysis. A loading indicator with a percentage appears in the middle of the window while the scan runs. It starts from the last boot.
