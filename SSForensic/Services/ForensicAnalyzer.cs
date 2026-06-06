@@ -548,16 +548,8 @@ namespace SSForensic.Services
         private Dictionary<string, List<string>> BuildMultiFileIndex(HashSet<string> wantedNames, CancellationToken ct)
         {
             var index = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (name, path) in EnumerateMatches(wantedNames, ct))
-            {
-                if (!index.TryGetValue(name, out var list)) { list = new List<string>(); index[name] = list; }
-                if (!list.Contains(path, StringComparer.OrdinalIgnoreCase)) list.Add(path);
-            }
-            return index;
-        }
+            if (wantedNames.Count == 0) return index;
 
-        private IEnumerable<(string name, string path)> EnumerateMatches(HashSet<string> wantedNames, CancellationToken ct)
-        {
             var roots = new[]
             {
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -569,40 +561,92 @@ namespace SSForensic.Services
              .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 
             var budget = Stopwatch.StartNew();
-            var maxBudget = TimeSpan.FromSeconds(30);
-            foreach (var root in roots)
+            var maxBudget = TimeSpan.FromSeconds(20);
+
+            // Track how many distinct wanted names we've already located, so we can
+            // stop early once everything we care about has been found.
+            var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var sync = new object();
+
+            // Scan the independent roots in parallel - they live on different subtrees.
+            Parallel.ForEach(roots, new ParallelOptions
             {
-                if (budget.Elapsed > maxBudget) break;
-                foreach (var hit in WalkDir(root, wantedNames, budget, maxBudget, ct)) yield return hit;
-            }
+                MaxDegreeOfParallelism = Math.Min(roots.Length, Environment.ProcessorCount),
+                CancellationToken = ct
+            },
+            root =>
+            {
+                foreach (var (name, path) in WalkDirFast(root, wantedNames, budget, maxBudget, ct))
+                {
+                    lock (sync)
+                    {
+                        if (!index.TryGetValue(name, out var list)) { list = new List<string>(); index[name] = list; }
+                        if (!list.Contains(path, StringComparer.OrdinalIgnoreCase)) list.Add(path);
+                        found.Add(name);
+                        // Early exit: every wanted name has at least one hit.
+                        if (found.Count >= wantedNames.Count) return;
+                    }
+                }
+            });
+
+            return index;
         }
 
-        private IEnumerable<(string name, string path)> WalkDir(string dir, HashSet<string> wantedNames,
-                              Stopwatch budget, TimeSpan maxBudget, CancellationToken ct)
+        // Directory names that are large and never hold a freshly-replaced cheat binary.
+        private static readonly HashSet<string> SkipDirNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "WinSxS", "Installer", "assembly", "WindowsApps", "servicing",
+            "node_modules", "cache", "cache2", "GPUCache", "Code Cache",
+            "Service Worker", "CacheStorage", ".git", "packages",
+            "Crashpad", "ShaderCache", "DXCache", "INetCache"
+        };
+
+        private IEnumerable<(string name, string path)> WalkDirFast(
+            string dir, HashSet<string> wantedNames, Stopwatch budget, TimeSpan maxBudget, CancellationToken ct)
         {
             if (budget.Elapsed > maxBudget || ct.IsCancellationRequested) yield break;
             if (IsKnownWindowsPath(dir)) yield break;
 
-            string[] files;
-            try { files = Directory.GetFiles(dir); } catch { yield break; }
-            foreach (var f in files)
+            var opts = new EnumerationOptions
             {
-                string name = Path.GetFileName(f);
-                if (wantedNames.Contains(name)) yield return (name, f);
+                IgnoreInaccessible = true,
+                RecurseSubdirectories = false,
+                AttributesToSkip = FileAttributes.ReparsePoint
+            };
+
+            // Files in this directory (lazy enumeration, no array allocation).
+            IEnumerator<string> fileEnum = null!;
+            try { fileEnum = Directory.EnumerateFiles(dir, "*", opts).GetEnumerator(); }
+            catch { yield break; }
+            using (fileEnum)
+            {
+                while (true)
+                {
+                    string f;
+                    try { if (!fileEnum.MoveNext()) break; f = fileEnum.Current; }
+                    catch { break; }
+                    string name = Path.GetFileName(f);
+                    if (wantedNames.Contains(name)) yield return (name, f);
+                }
             }
 
-            string[] subdirs;
-            try { subdirs = Directory.GetDirectories(dir); } catch { yield break; }
-            foreach (var sub in subdirs)
+            if (budget.Elapsed > maxBudget) yield break;
+
+            IEnumerator<string> dirEnum = null!;
+            try { dirEnum = Directory.EnumerateDirectories(dir, "*", opts).GetEnumerator(); }
+            catch { yield break; }
+            using (dirEnum)
             {
-                string subName = Path.GetFileName(sub);
-                if (subName.Equals("WinSxS", StringComparison.OrdinalIgnoreCase)) continue;
-                if (subName.Equals("Installer", StringComparison.OrdinalIgnoreCase)) continue;
-                if (subName.Equals("assembly", StringComparison.OrdinalIgnoreCase)) continue;
-                if (subName.Equals("WindowsApps", StringComparison.OrdinalIgnoreCase)) continue;
-                if (subName.Equals("servicing", StringComparison.OrdinalIgnoreCase)) continue;
-                if (subName.StartsWith("$", StringComparison.Ordinal)) continue;
-                foreach (var hit in WalkDir(sub, wantedNames, budget, maxBudget, ct)) yield return hit;
+                while (true)
+                {
+                    string sub;
+                    try { if (!dirEnum.MoveNext()) break; sub = dirEnum.Current; }
+                    catch { break; }
+                    string subName = Path.GetFileName(sub);
+                    if (SkipDirNames.Contains(subName)) continue;
+                    if (subName.StartsWith("$", StringComparison.Ordinal)) continue;
+                    foreach (var hit in WalkDirFast(sub, wantedNames, budget, maxBudget, ct)) yield return hit;
+                }
             }
         }
 
