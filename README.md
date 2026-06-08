@@ -1,6 +1,6 @@
 # Replace Parser
 
-Replace Parser is a forensic helper for Minecraft screen shares. It reconstructs the file replacements and renames that happened on a machine since the last boot, then tells you, for each one, whether the file looks like a known cheat, whether its extension has been faked, and whether its digital signature actually checks out.
+Replace Parser is a forensic tool for screen shares. It reconstructs the file replacements and renames that happened on a machine since the last boot, then tells you, for each one, whether the file looks like a known cheat, whether its extension has been faked, and whether its digital signature actually checks out.
 
 It was built around one idea: a screen sharer shouldn't have to trust the suspect's word about what a file is. The journal that NTFS keeps doesn't lie, and neither does an Authenticode signature, so the tool leans on those instead of on file names or timestamps that anyone can edit.
 
