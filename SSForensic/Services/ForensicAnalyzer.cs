@@ -692,6 +692,21 @@ namespace SSForensic.Services
                 DeclaredExtension = Path.GetExtension(filename)
             };
 
+            // Full per-file USN change history (JournalTrace-style detail view).
+            record.FileReferenceNumber = frn;
+            foreach (var ev in events.OrderBy(e => e.Usn))
+            {
+                record.UsnHistory.Add(new UsnEvent
+                {
+                    Usn = ev.Usn,
+                    Name = ev.FileName,
+                    Timestamp = ev.Timestamp,
+                    Reason = ev.ReasonString,
+                    FileReferenceNumber = ev.FileReferenceNumber,
+                    ParentFileReferenceNumber = ev.ParentFileReferenceNumber
+                });
+            }
+
             string? canonical = File.Exists(replacementPath) ? replacementPath
                               : File.Exists(originalPath) ? originalPath : null;
 

@@ -165,6 +165,7 @@
 
         <!-- ===== MAIN GRID ===== -->
         <DataGrid Grid.Row="3" ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord}"
+                  MouseDoubleClick="RecordsGrid_MouseDoubleClick"
                   AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                   Background="{StaticResource BgBase}" Foreground="{StaticResource TextPrimary}"
                   RowBackground="{StaticResource BgRow}" AlternatingRowBackground="{StaticResource BgRowAlt}"

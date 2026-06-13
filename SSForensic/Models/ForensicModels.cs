@@ -86,6 +86,13 @@ namespace SSForensic.Models
         // Supporting evidence
         public List<ForensicEvidence> Evidence { get; set; } = new();
 
+        // Full per-file USN change history (every journal entry for this file's
+        // NTFS reference number) - powers the JournalTrace-style detail window.
+        public List<UsnEvent> UsnHistory { get; set; } = new();
+
+        // The NTFS file reference number this record was grouped by.
+        public ulong FileReferenceNumber { get; set; }
+
         // Extended digital-signature verification (Authenticode + X509 chain + WinTrust)
         public string SignatureVerdict { get; set; } = string.Empty;
         public string SignatureDetails { get; set; } = string.Empty;
@@ -109,6 +116,23 @@ namespace SSForensic.Models
                 };
             }
         }
+    }
+
+    /// <summary>
+    /// A single NTFS USN journal entry for a file, mirroring the columns shown in
+    /// JournalTrace-style detail views: USN, Name, Date, Reason, Directory (parent FRN).
+    /// </summary>
+    public class UsnEvent
+    {
+        public long Usn { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+        public string Reason { get; set; } = string.Empty;
+        public ulong FileReferenceNumber { get; set; }
+        public ulong ParentFileReferenceNumber { get; set; }
+
+        // Convenience for binding: the "Directory" column shows the parent reference number.
+        public string Directory => ParentFileReferenceNumber.ToString();
     }
 
     /// <summary>
