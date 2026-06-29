@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vm="clr-namespace:SSForensic.ViewModels"
+        xmlns:local="clr-namespace:SSForensic.Views"
         Title="Replace Parser"
         Icon="/app.ico"
         Height="900" Width="1500"
@@ -15,6 +16,12 @@
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
+
+    <Window.Resources>
+        <!-- ReplaceType converters -->
+        <local:ReplaceTypeToBrushConverter       x:Key="ReplaceTypeToBrush"/>
+        <local:ReplaceTypeToDescriptionConverter x:Key="ReplaceTypeToDescription"/>
+    </Window.Resources>
 
     <Grid>
         <Grid>
@@ -222,6 +229,25 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Type" Width="90">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding ReplaceTypeLabel}"
+                                       VerticalAlignment="Center"
+                                       FontFamily="Consolas" FontSize="11.5"
+                                       Foreground="{Binding DetectedReplaceType, Converter={StaticResource ReplaceTypeToBrush}}">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel>
+                                            <TextBlock FontWeight="Bold" Text="{Binding ReplaceTypeLabel, StringFormat='Replace type: {0}'}"/>
+                                            <TextBlock Margin="0,4,0,0" Text="{Binding DetectedReplaceType, Converter={StaticResource ReplaceTypeToDescription}}" TextWrapping="Wrap" MaxWidth="280"/>
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 
@@ -271,6 +297,12 @@
                             <TextBlock Margin="0,2"><Run Text="Trust: " Foreground="{StaticResource TextMuted}"/><Run Text="{Binding SelectedRecord.ReplacementTrust}"/></TextBlock>
                             <TextBlock TextWrapping="Wrap" Margin="0,2"><Run Text="Signer: " Foreground="{StaticResource TextMuted}"/><Run Text="{Binding SelectedRecord.ReplacementSigner}"/></TextBlock>
                             <TextBlock TextWrapping="Wrap" Margin="0,2"><Run Text="Format: " Foreground="{StaticResource TextMuted}"/><Run Text="{Binding SelectedRecord.DetectedFormat}"/></TextBlock>
+
+                            <TextBlock Margin="0,6,0,2">
+                                <Run Text="Replace Type: " Foreground="{StaticResource TextMuted}"/>
+                                <Run Text="{Binding SelectedRecord.ReplaceTypeLabel}"
+                                     Foreground="{Binding SelectedRecord.DetectedReplaceType, Converter={StaticResource ReplaceTypeToBrush}}"/>
+                            </TextBlock>
 
                             <TextBlock Margin="0,10,0,4" Text="SIGNATURE" Foreground="{StaticResource TextSecondary}" FontSize="11"/>
                             <TextBlock Margin="0,2"><Run Text="Verdict: " Foreground="{StaticResource TextMuted}"/><Run Text="{Binding SelectedRecord.SignatureVerdict}"/></TextBlock>

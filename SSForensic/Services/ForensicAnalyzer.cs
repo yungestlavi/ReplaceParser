@@ -735,6 +735,10 @@ namespace SSForensic.Services
                         RawData = $"USN={ev.Usn} FRN={ev.FileReferenceNumber} Reason=0x{ev.Reason:X8}"
                     });
                 }
+                record.DetectedReplaceType = DetectReplaceType(
+                    events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList());
+                // Discard records whose USN sequence doesn't match any known replace pattern.
+                if (record.DetectedReplaceType == ReplaceType.Unknown) return null;
                 return record;
             }
 
@@ -829,6 +833,14 @@ namespace SSForensic.Services
                     RawData = $"USN={ev.Usn} FRN={ev.FileReferenceNumber} Reason=0x{ev.Reason:X8}"
                 });
             }
+
+            // ---- Pattern-match the replace type from the USN reason sequence ----
+            record.DetectedReplaceType = DetectReplaceType(
+                events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList());
+
+            // Discard records whose USN sequence doesn't match any known replace pattern.
+            if (record.DetectedReplaceType == ReplaceType.Unknown) return null;
+
             return record;
         }
 
@@ -870,6 +882,150 @@ namespace SSForensic.Services
                 ".class" => detectedFmt != "CLASS",
                 _ => false
             };
+        }
+        // ============================================================
+        //  REPLACE-TYPE PATTERN MATCHING  (from usn_patterns.h)
+        // ============================================================
+        //
+        // Each USN record carries a bitmask reason; ReasonString is a comma-separated
+        // list of the human-readable flag names that are set.  We split those names,
+        // collect one entry per unique USN record into an ordered sequence of sorted
+        // token-sets, then try to match that sequence against every known pattern.
+        //
+        // Rules (read from usn_patterns.h verbatim):
+        //
+        // EXPLORER_PATTERN  (rename-over)
+        //   { "File Delete", "Close" }
+        //   { "Rename Old Name" }
+        //   { "Rename New Name" }
+        //   { "Rename New Name", "Close" }
+        //
+        // COPY_PATTERN_1  (copy with Security change)
+        //   { "Data Truncation", "Security Change" }
+        //   { "Data Extend", "Data Truncation", "Security Change" }
+        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change" }
+        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change" }
+        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change", "Close" }
+        //
+        // COPY_PATTERN_2  (copy without Security change)
+        //   { "Data Truncation" }
+        //   { "Data Extend", "Data Truncation" }
+        //   { "Data Overwrite", "Data Extend", "Data Truncation" }
+        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change" }
+        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change", "Close" }
+        //
+        // TYPE_PATTERN_1
+        //   { "Data Extend", "Data Truncation" }
+        //   { "Data Extend", "Data Truncation", "Close" }
+        //
+        // TYPE_PATTERN_2
+        //   { "Data Truncation" }
+        //   { "Data Extend", "Data Truncation" }
+        //
+        // HEX: any record whose *only* set flag is "Data Overwrite" (raw binary write,
+        //      no extend/truncate pairing) → HEX editor or direct write.
+        //
+        // Priority: Explorer > Copy > Type > Hex > Unknown.
+        // A pattern matches if every one of its rows appears as a contiguous subsequence
+        // in the event stream (rows may be merged/accumulated across multiple USN entries
+        // that share the same timestamp, as the journal sometimes flushes them together).
+
+        private static readonly HashSet<string>[][] ExplorerPattern = BuildPatternTable(new[]
+        {
+            new[] { "File Delete", "Close" },
+            new[] { "Rename Old Name" },
+            new[] { "Rename New Name" },
+            new[] { "Rename New Name", "Close" }
+        });
+
+        private static readonly HashSet<string>[][] CopyPattern1 = BuildPatternTable(new[]
+        {
+            new[] { "Data Truncation", "Security Change" },
+            new[] { "Data Extend", "Data Truncation", "Security Change" },
+            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change" },
+            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change" },
+            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change", "Close" }
+        });
+
+        private static readonly HashSet<string>[][] CopyPattern2 = BuildPatternTable(new[]
+        {
+            new[] { "Data Truncation" },
+            new[] { "Data Extend", "Data Truncation" },
+            new[] { "Data Overwrite", "Data Extend", "Data Truncation" },
+            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change" },
+            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change", "Close" }
+        });
+
+        private static readonly HashSet<string>[][] TypePattern1 = BuildPatternTable(new[]
+        {
+            new[] { "Data Extend", "Data Truncation" },
+            new[] { "Data Extend", "Data Truncation", "Close" }
+        });
+
+        private static readonly HashSet<string>[][] TypePattern2 = BuildPatternTable(new[]
+        {
+            new[] { "Data Truncation" },
+            new[] { "Data Extend", "Data Truncation" }
+        });
+
+        private static HashSet<string>[][] BuildPatternTable(string[][] rows)
+            => rows.Select(r => new[] { new HashSet<string>(r, StringComparer.OrdinalIgnoreCase) }).ToArray();
+
+        /// <summary>
+        /// Converts a list of raw ReasonString values (one per USN record, already in USN order)
+        /// into a sequence of reason-token sets, then matches against the known patterns.
+        /// </summary>
+        private static ReplaceType DetectReplaceType(List<string> reasonStrings)
+        {
+            // Build the event sequence: each entry is the set of reason tokens for that USN record.
+            // A single ReasonString may already be comma-separated if multiple flags are set.
+            var seq = reasonStrings
+                .Select(rs => new HashSet<string>(
+                    rs.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                      .Select(t => t.Trim()),
+                    StringComparer.OrdinalIgnoreCase))
+                .Where(s => s.Count > 0)
+                .ToList();
+
+            if (seq.Count == 0) return ReplaceType.Unknown;
+
+            // Try patterns in priority order: Explorer > Copy > Type > Hex.
+            if (MatchesPattern(seq, ExplorerPattern)) return ReplaceType.Explorer;
+            if (MatchesPattern(seq, CopyPattern1))   return ReplaceType.Copy;
+            if (MatchesPattern(seq, CopyPattern2))   return ReplaceType.Copy;
+            if (MatchesPattern(seq, TypePattern1))   return ReplaceType.Type;
+            if (MatchesPattern(seq, TypePattern2))   return ReplaceType.Type;
+
+            // HEX: any record whose sole reason token is "Data Overwrite"
+            bool hasHex = seq.Any(s => s.Count == 1 && s.Contains("Data Overwrite"));
+            if (hasHex) return ReplaceType.Hex;
+
+            return ReplaceType.Unknown;
+        }
+
+        /// <summary>
+        /// Returns true if every pattern row appears (as a subset) in the event sequence,
+        /// in order, allowing gaps (the journal may emit extra entries between pattern rows).
+        /// Each pattern row must match an event entry whose token-set is an *exact* match
+        /// (same tokens, no more, no less) to avoid false positives.
+        /// </summary>
+        private static bool MatchesPattern(List<HashSet<string>> seq, HashSet<string>[][] pattern)
+        {
+            int si = 0;
+            foreach (var patRow in pattern)
+            {
+                // patRow is always a single-element array (one HashSet per pattern row).
+                var required = patRow[0];
+                bool found = false;
+                while (si < seq.Count)
+                {
+                    // Exact set equality: all required tokens present AND no extra tokens.
+                    if (seq[si].SetEquals(required)) { found = true; si++; break; }
+                    si++;
+                }
+                if (!found) return false;
+            }
+            return true;
         }
     }
 }

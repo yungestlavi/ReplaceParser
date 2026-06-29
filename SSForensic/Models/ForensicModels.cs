@@ -4,6 +4,18 @@ using System.Collections.Generic;
 namespace SSForensic.Models
 {
     /// <summary>
+    /// How the replace was performed, detected by matching USN reason sequences.
+    /// </summary>
+    public enum ReplaceType
+    {
+        Unknown,
+        Explorer,   // File renamed over target via Windows Explorer (Rename Old/New pattern)
+        Type,       // Typed-overwrite or echo-replace (Data Extend + Truncation only)
+        Copy,       // Copy-paste overwrite (Data Overwrite + Extend + Truncation ± Security/BasicInfo)
+        Hex         // Hex-editor or raw binary write (no standard overwrite sequence, Data Overwrite alone or anomalous)
+    }
+
+    /// <summary>
     /// Classification of the file's trust level (sets row color).
     /// </summary>
     public enum FileTrust
@@ -89,6 +101,19 @@ namespace SSForensic.Models
         // Full per-file USN change history (every journal entry for this file's
         // NTFS reference number) - powers the JournalTrace-style detail window.
         public List<UsnEvent> UsnHistory { get; set; } = new();
+
+        // How the replace was performed (pattern-matched from USN reason sequence)
+        public ReplaceType DetectedReplaceType { get; set; } = ReplaceType.Unknown;
+
+        /// <summary>Human-readable label shown in the Type column.</summary>
+        public string ReplaceTypeLabel => DetectedReplaceType switch
+        {
+            ReplaceType.Explorer => "Explorer",
+            ReplaceType.Type     => "Type",
+            ReplaceType.Copy     => "Copy",
+            ReplaceType.Hex      => "HEX",
+            _                    => "Unknown"
+        };
 
         // The NTFS file reference number this record was grouped by.
         public ulong FileReferenceNumber { get; set; }
