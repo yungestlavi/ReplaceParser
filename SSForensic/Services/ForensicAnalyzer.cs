@@ -930,55 +930,73 @@ namespace SSForensic.Services
         // in the event stream (rows may be merged/accumulated across multiple USN entries
         // that share the same timestamp, as the journal sometimes flushes them together).
 
-        private static readonly HashSet<string>[][] ExplorerPattern = BuildPatternTable(new[]
-        {
-            new[] { "File Delete", "Close" },
-            new[] { "Rename Old Name" },
-            new[] { "Rename New Name" },
-            new[] { "Rename New Name", "Close" }
-        });
+        // ── Pattern definitions (verbatim from usn_patterns.h) ──────────────────
+        // Each pattern is an array of required token-sets (one per logical step).
+        // The USN journal may emit these either as separate records OR merged into
+        // fewer records (accumulation). We therefore work on the UNION of all tokens
+        // seen across the entire event group, and also try step-by-step matching.
 
-        private static readonly HashSet<string>[][] CopyPattern1 = BuildPatternTable(new[]
+        private static readonly HashSet<string>[] ExplorerPatternRows = new[]
         {
-            new[] { "Data Truncation", "Security Change" },
-            new[] { "Data Extend", "Data Truncation", "Security Change" },
-            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change" },
-            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change" },
-            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change", "Close" }
-        });
+            new HashSet<string>(new[]{ "File Delete", "Close" },                                                                           StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Rename Old Name" },                                                                                StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Rename New Name" },                                                                                StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Rename New Name", "Close" },                                                                       StringComparer.OrdinalIgnoreCase),
+        };
 
-        private static readonly HashSet<string>[][] CopyPattern2 = BuildPatternTable(new[]
+        private static readonly HashSet<string>[] CopyPattern1Rows = new[]
         {
-            new[] { "Data Truncation" },
-            new[] { "Data Extend", "Data Truncation" },
-            new[] { "Data Overwrite", "Data Extend", "Data Truncation" },
-            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change" },
-            new[] { "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change", "Close" }
-        });
+            new HashSet<string>(new[]{ "Data Truncation", "Security Change" },                                                             StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Extend", "Data Truncation", "Security Change" },                                              StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Security Change" },                            StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change" },       StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change", "Close" }, StringComparer.OrdinalIgnoreCase),
+        };
 
-        private static readonly HashSet<string>[][] TypePattern1 = BuildPatternTable(new[]
+        private static readonly HashSet<string>[] CopyPattern2Rows = new[]
         {
-            new[] { "Data Extend", "Data Truncation" },
-            new[] { "Data Extend", "Data Truncation", "Close" }
-        });
+            new HashSet<string>(new[]{ "Data Truncation" },                                                                                StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Extend", "Data Truncation" },                                                                 StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation" },                                               StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change" },                          StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change", "Close" },                 StringComparer.OrdinalIgnoreCase),
+        };
 
-        private static readonly HashSet<string>[][] TypePattern2 = BuildPatternTable(new[]
+        private static readonly HashSet<string>[] TypePattern1Rows = new[]
         {
-            new[] { "Data Truncation" },
-            new[] { "Data Extend", "Data Truncation" }
-        });
+            new HashSet<string>(new[]{ "Data Extend", "Data Truncation" },                                                                 StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Extend", "Data Truncation", "Close" },                                                        StringComparer.OrdinalIgnoreCase),
+        };
 
-        private static HashSet<string>[][] BuildPatternTable(string[][] rows)
-            => rows.Select(r => new[] { new HashSet<string>(r, StringComparer.OrdinalIgnoreCase) }).ToArray();
+        private static readonly HashSet<string>[] TypePattern2Rows = new[]
+        {
+            new HashSet<string>(new[]{ "Data Truncation" },                                                                                StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(new[]{ "Data Extend", "Data Truncation" },                                                                 StringComparer.OrdinalIgnoreCase),
+        };
 
         /// <summary>
-        /// Converts a list of raw ReasonString values (one per USN record, already in USN order)
-        /// into a sequence of reason-token sets, then matches against the known patterns.
+        /// Detects the replace type from the ordered list of ReasonString values for a file's
+        /// USN event group.
+        ///
+        /// The USN journal can emit reason flags in two ways:
+        ///   A) One record per logical step  → we get multiple entries, each with a subset of tokens.
+        ///   B) All flags merged into one record → we get a single entry with all tokens at once.
+        ///
+        /// Strategy:
+        ///   1. Build the per-record token sets (split each ReasonString on ", ").
+        ///   2. Also build the UNION of all tokens across all records.
+        ///   3. For each pattern try TWO matching strategies:
+        ///        a) Step-by-step: every pattern row must appear as a (super)set of some record,
+        ///           in order, allowing gaps between records (journal may emit extra entries).
+        ///        b) Accumulated: the union of all tokens is a superset of the LAST (most complete)
+        ///           row of the pattern — covers the "everything merged into one record" case.
+        ///   4. Either strategy matching → pattern confirmed.
         /// </summary>
         private static ReplaceType DetectReplaceType(List<string> reasonStrings)
         {
-            // Build the event sequence: each entry is the set of reason tokens for that USN record.
-            // A single ReasonString may already be comma-separated if multiple flags are set.
+            if (reasonStrings.Count == 0) return ReplaceType.Unknown;
+
+            // Build per-record token sets.
             var seq = reasonStrings
                 .Select(rs => new HashSet<string>(
                     rs.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries)
@@ -989,43 +1007,61 @@ namespace SSForensic.Services
 
             if (seq.Count == 0) return ReplaceType.Unknown;
 
-            // Try patterns in priority order: Explorer > Copy > Type > Hex.
-            if (MatchesPattern(seq, ExplorerPattern)) return ReplaceType.Explorer;
-            if (MatchesPattern(seq, CopyPattern1))   return ReplaceType.Copy;
-            if (MatchesPattern(seq, CopyPattern2))   return ReplaceType.Copy;
-            if (MatchesPattern(seq, TypePattern1))   return ReplaceType.Type;
-            if (MatchesPattern(seq, TypePattern2))   return ReplaceType.Type;
+            // Union of all tokens seen across all records in this event group.
+            var union = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in seq) union.UnionWith(s);
 
-            // HEX: any record whose sole reason token is "Data Overwrite"
-            bool hasHex = seq.Any(s => s.Count == 1 && s.Contains("Data Overwrite"));
-            if (hasHex) return ReplaceType.Hex;
+            // Explorer pattern uses renames — check step-by-step only (accumulation
+            // doesn't apply because rename old/new are always separate journal entries).
+            if (MatchesStepByStep(seq, ExplorerPatternRows)) return ReplaceType.Explorer;
+
+            // Copy and Type patterns: try both strategies.
+            if (MatchesStepByStep(seq, CopyPattern1Rows) || MatchesAccumulated(union, CopyPattern1Rows)) return ReplaceType.Copy;
+            if (MatchesStepByStep(seq, CopyPattern2Rows) || MatchesAccumulated(union, CopyPattern2Rows)) return ReplaceType.Copy;
+            if (MatchesStepByStep(seq, TypePattern1Rows) || MatchesAccumulated(union, TypePattern1Rows)) return ReplaceType.Type;
+            if (MatchesStepByStep(seq, TypePattern2Rows) || MatchesAccumulated(union, TypePattern2Rows)) return ReplaceType.Type;
+
+            // HEX: Data Overwrite present but without the Extend+Truncation pairing.
+            bool hasOverwrite  = union.Contains("Data Overwrite");
+            bool hasExtend     = union.Contains("Data Extend");
+            bool hasTruncation = union.Contains("Data Truncation");
+            if (hasOverwrite && !(hasExtend && hasTruncation)) return ReplaceType.Hex;
 
             return ReplaceType.Unknown;
         }
 
         /// <summary>
-        /// Returns true if every pattern row appears (as a subset) in the event sequence,
-        /// in order, allowing gaps (the journal may emit extra entries between pattern rows).
-        /// Each pattern row must match an event entry whose token-set is an *exact* match
-        /// (same tokens, no more, no less) to avoid false positives.
+        /// Step-by-step match: every pattern row must appear — in order, gaps allowed —
+        /// as a SUBSET of some record in the sequence.
+        /// (record can have MORE tokens than the pattern row, but must have AT LEAST all of them)
         /// </summary>
-        private static bool MatchesPattern(List<HashSet<string>> seq, HashSet<string>[][] pattern)
+        private static bool MatchesStepByStep(List<HashSet<string>> seq, HashSet<string>[] patternRows)
         {
             int si = 0;
-            foreach (var patRow in pattern)
+            foreach (var required in patternRows)
             {
-                // patRow is always a single-element array (one HashSet per pattern row).
-                var required = patRow[0];
                 bool found = false;
                 while (si < seq.Count)
                 {
-                    // Exact set equality: all required tokens present AND no extra tokens.
-                    if (seq[si].SetEquals(required)) { found = true; si++; break; }
+                    if (seq[si].IsSupersetOf(required)) { found = true; si++; break; }
                     si++;
                 }
                 if (!found) return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// Accumulated match: the union of ALL tokens in the event group is a superset of
+        /// the LAST (most complete) row of the pattern.
+        /// This covers the case where the journal flushes all flags in a single record.
+        /// </summary>
+        private static bool MatchesAccumulated(HashSet<string> union, HashSet<string>[] patternRows)
+        {
+            // The last row of every pattern is the most complete — it contains all the tokens
+            // that must have been emitted for this replace type to have occurred.
+            var lastRow = patternRows[patternRows.Length - 1];
+            return union.IsSupersetOf(lastRow);
         }
     }
 }
