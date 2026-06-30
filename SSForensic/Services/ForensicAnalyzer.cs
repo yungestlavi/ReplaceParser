@@ -884,94 +884,109 @@ namespace SSForensic.Services
             };
         }
         // ============================================================
-        //  REPLACE-TYPE PATTERN MATCHING  (from usn_patterns.h)
+        //  REPLACE-TYPE PATTERN MATCHING  (real JournalTrace tokens)
         // ============================================================
         //
-        // Each USN record carries a bitmask reason; ReasonString is a comma-separated
-        // list of the human-readable flag names that are set.  We split those names,
-        // collect one entry per unique USN record into an ordered sequence of sorted
-        // token-sets, then try to match that sequence against every known pattern.
+        // Each USN record's ReasonString is a " | "-separated list of human-readable
+        // flag names, EXACTLY as JournalTrace displays them (confirmed via real captures
+        // on 30/06/2026):
         //
-        // Rules (read from usn_patterns.h verbatim):
+        //   "File delete | Close"
+        //   "Rename: old name"
+        //   "Rename: new name"
+        //   "Rename: new name | Close"
+        //   "Data truncation"
+        //   "Data extend | Data truncation"
+        //   "Data extend | Data truncation | Close"
+        //   "Data truncation | Security change"
+        //   "Data overwrite | Data extend | Data truncation | Security change"
+        //   "Data overwrite | Data extend | Data truncation | Basic info change"
+        //   "Data overwrite | Data extend | Data truncation | Basic info change | Close"
+        //   "Data overwrite | Data extend"
+        //   "Data overwrite | Data extend | Close"
         //
-        // EXPLORER_PATTERN  (rename-over)
-        //   { "File Delete", "Close" }
-        //   { "Rename Old Name" }
-        //   { "Rename New Name" }
-        //   { "Rename New Name", "Close" }
+        // We match case-INsensitively against the canonical lower-case tokens below,
+        // so capitalisation drift in future Windows builds won't break detection.
         //
-        // COPY_PATTERN_1  (copy with Security change)
-        //   { "Data Truncation", "Security Change" }
-        //   { "Data Extend", "Data Truncation", "Security Change" }
-        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change" }
-        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change" }
-        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change", "Close" }
+        // EXPLORER  (rename-over, confirmed: prova 1.exe)
+        //   { "File delete", "Close" }
+        //   { "Rename: old name" }
+        //   { "Rename: new name" }
+        //   { "Rename: new name", "Close" }
         //
-        // COPY_PATTERN_2  (copy without Security change)
-        //   { "Data Truncation" }
-        //   { "Data Extend", "Data Truncation" }
-        //   { "Data Overwrite", "Data Extend", "Data Truncation" }
-        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change" }
-        //   { "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change", "Close" }
+        // TYPE  (confirmed: prova 2.exe, plus shorter variant)
+        //   { "Data truncation" }
+        //   { "Data extend", "Data truncation" }
+        //   { "Data extend", "Data truncation", "Close" }
         //
-        // TYPE_PATTERN_1
-        //   { "Data Extend", "Data Truncation" }
-        //   { "Data Extend", "Data Truncation", "Close" }
+        // COPY  (confirmed: prova 3.exe, full chain with Security change)
+        //   { "Data truncation", "Security change" }
+        //   { "Data extend", "Data truncation", "Security change" }
+        //   { "Data overwrite", "Data extend", "Data truncation", "Security change" }
+        //   { "Data overwrite", "Data extend", "Data truncation" }                          (no Security change variant)
+        //   { "Data overwrite", "Data extend", "Data truncation", "Basic info change" }
+        //   { "Data overwrite", "Data extend", "Data truncation", "Basic info change", "Close" }
         //
-        // TYPE_PATTERN_2
-        //   { "Data Truncation" }
-        //   { "Data Extend", "Data Truncation" }
+        // HEX  (confirmed: USBDetector.exe — raw write, no truncation step at all)
+        //   { "Data extend" }
+        //   { "Data overwrite", "Data extend" }
+        //   { "Data overwrite", "Data extend", "Close" }
         //
-        // HEX: any record whose *only* set flag is "Data Overwrite" (raw binary write,
-        //      no extend/truncate pairing) → HEX editor or direct write.
-        //
-        // Priority: Explorer > Copy > Type > Hex > Unknown.
-        // A pattern matches if every one of its rows appears as a contiguous subsequence
-        // in the event stream (rows may be merged/accumulated across multiple USN entries
-        // that share the same timestamp, as the journal sometimes flushes them together).
+        // Priority order: Explorer > Copy > Type > Hex > Unknown.
+        // (Copy before Type because Copy's signature chain always contains a
+        //  "Data overwrite" step that Type never has — checking Copy first avoids
+        //  a partial Copy sequence being misread as Type.)
 
-        // ── Pattern definitions (verbatim from usn_patterns.h) ──────────────────
-        // Each pattern is an array of required token-sets (one per logical step).
-        // The USN journal may emit these either as separate records OR merged into
-        // fewer records (accumulation). We therefore work on the UNION of all tokens
-        // seen across the entire event group, and also try step-by-step matching.
+        private static HashSet<string> Row(params string[] tokens)
+            => new HashSet<string>(tokens, StringComparer.OrdinalIgnoreCase);
 
-        private static readonly HashSet<string>[] ExplorerPatternRows = new[]
+        private static readonly HashSet<string>[] ExplorerPatternRows =
         {
-            new HashSet<string>(new[]{ "File Delete", "Close" },                                                                           StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Rename Old Name" },                                                                                StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Rename New Name" },                                                                                StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Rename New Name", "Close" },                                                                       StringComparer.OrdinalIgnoreCase),
+            Row("File delete", "Close"),
+            Row("Rename: old name"),
+            Row("Rename: new name"),
+            Row("Rename: new name", "Close"),
         };
 
-        private static readonly HashSet<string>[] CopyPattern1Rows = new[]
+        // Copy: with Security change (e.g. cross-volume / permission-preserving copy)
+        private static readonly HashSet<string>[] CopyPattern1Rows =
         {
-            new HashSet<string>(new[]{ "Data Truncation", "Security Change" },                                                             StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Extend", "Data Truncation", "Security Change" },                                              StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Security Change" },                            StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change" },       StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Security Change", "Basic Info Change", "Close" }, StringComparer.OrdinalIgnoreCase),
+            Row("Data truncation", "Security change"),
+            Row("Data extend", "Data truncation", "Security change"),
+            Row("Data overwrite", "Data extend", "Data truncation", "Security change"),
+            Row("Data overwrite", "Data extend", "Data truncation", "Security change", "Basic info change"),
+            Row("Data overwrite", "Data extend", "Data truncation", "Security change", "Basic info change", "Close"),
         };
 
-        private static readonly HashSet<string>[] CopyPattern2Rows = new[]
+        // Copy: without Security change (plain same-volume copy-paste / drag-drop overwrite)
+        private static readonly HashSet<string>[] CopyPattern2Rows =
         {
-            new HashSet<string>(new[]{ "Data Truncation" },                                                                                StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Extend", "Data Truncation" },                                                                 StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation" },                                               StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change" },                          StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Overwrite", "Data Extend", "Data Truncation", "Basic Info Change", "Close" },                 StringComparer.OrdinalIgnoreCase),
+            Row("Data truncation"),
+            Row("Data extend", "Data truncation"),
+            Row("Data overwrite", "Data extend", "Data truncation"),
+            Row("Data overwrite", "Data extend", "Data truncation", "Basic info change"),
+            Row("Data overwrite", "Data extend", "Data truncation", "Basic info change", "Close"),
         };
 
-        private static readonly HashSet<string>[] TypePattern1Rows = new[]
+        // Type: short truncate+extend chain (typed/echo/redirect overwrite, no Data overwrite step)
+        private static readonly HashSet<string>[] TypePattern1Rows =
         {
-            new HashSet<string>(new[]{ "Data Extend", "Data Truncation" },                                                                 StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Extend", "Data Truncation", "Close" },                                                        StringComparer.OrdinalIgnoreCase),
+            Row("Data extend", "Data truncation"),
+            Row("Data extend", "Data truncation", "Close"),
         };
 
-        private static readonly HashSet<string>[] TypePattern2Rows = new[]
+        private static readonly HashSet<string>[] TypePattern2Rows =
         {
-            new HashSet<string>(new[]{ "Data Truncation" },                                                                                StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(new[]{ "Data Extend", "Data Truncation" },                                                                 StringComparer.OrdinalIgnoreCase),
+            Row("Data truncation"),
+            Row("Data extend", "Data truncation"),
+        };
+
+        // HEX: raw/direct write — Data overwrite + Data extend, but crucially NO Data truncation.
+        private static readonly HashSet<string>[] HexPatternRows =
+        {
+            Row("Data extend"),
+            Row("Data overwrite", "Data extend"),
+            Row("Data overwrite", "Data extend", "Close"),
         };
 
         /// <summary>
@@ -979,27 +994,24 @@ namespace SSForensic.Services
         /// USN event group.
         ///
         /// The USN journal can emit reason flags in two ways:
-        ///   A) One record per logical step  → we get multiple entries, each with a subset of tokens.
-        ///   B) All flags merged into one record → we get a single entry with all tokens at once.
+        ///   A) One record per logical step  → multiple entries, each a subset of tokens.
+        ///   B) All flags merged into one record → a single entry with all tokens at once.
         ///
-        /// Strategy:
-        ///   1. Build the per-record token sets (split each ReasonString on ", ").
-        ///   2. Also build the UNION of all tokens across all records.
-        ///   3. For each pattern try TWO matching strategies:
-        ///        a) Step-by-step: every pattern row must appear as a (super)set of some record,
-        ///           in order, allowing gaps between records (journal may emit extra entries).
-        ///        b) Accumulated: the union of all tokens is a superset of the LAST (most complete)
-        ///           row of the pattern — covers the "everything merged into one record" case.
-        ///   4. Either strategy matching → pattern confirmed.
+        /// Strategy: for every pattern, try BOTH:
+        ///   a) Step-by-step  — every pattern row found in order among the records (gaps allowed),
+        ///                      each record must be a SUPERSET of the required row.
+        ///   b) Accumulated   — the union of every token seen in the whole group is a superset
+        ///                      of the pattern's most complete row.
+        /// Either strategy matching confirms the pattern.
         /// </summary>
         private static ReplaceType DetectReplaceType(List<string> reasonStrings)
         {
             if (reasonStrings.Count == 0) return ReplaceType.Unknown;
 
-            // Build per-record token sets.
+            // Build per-record token sets (real separator is " | ", but we also accept "," for safety).
             var seq = reasonStrings
                 .Select(rs => new HashSet<string>(
-                    rs.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                    rs.Split(new[] { '|', ',' }, StringSplitOptions.RemoveEmptyEntries)
                       .Select(t => t.Trim()),
                     StringComparer.OrdinalIgnoreCase))
                 .Where(s => s.Count > 0)
@@ -1011,29 +1023,27 @@ namespace SSForensic.Services
             var union = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var s in seq) union.UnionWith(s);
 
-            // Explorer pattern uses renames — check step-by-step only (accumulation
-            // doesn't apply because rename old/new are always separate journal entries).
+            // Explorer: renames are always separate journal entries, so step-by-step only.
             if (MatchesStepByStep(seq, ExplorerPatternRows)) return ReplaceType.Explorer;
 
-            // Copy and Type patterns: try both strategies.
+            // Copy checked before Type: Copy's chain always includes "Data overwrite" at some
+            // point, which Type's chain never has. Checking Copy first prevents a partial Copy
+            // sequence (e.g. only the first two rows captured) from being misread as Type.
             if (MatchesStepByStep(seq, CopyPattern1Rows) || MatchesAccumulated(union, CopyPattern1Rows)) return ReplaceType.Copy;
             if (MatchesStepByStep(seq, CopyPattern2Rows) || MatchesAccumulated(union, CopyPattern2Rows)) return ReplaceType.Copy;
+
             if (MatchesStepByStep(seq, TypePattern1Rows) || MatchesAccumulated(union, TypePattern1Rows)) return ReplaceType.Type;
             if (MatchesStepByStep(seq, TypePattern2Rows) || MatchesAccumulated(union, TypePattern2Rows)) return ReplaceType.Type;
 
-            // HEX: Data Overwrite present but without the Extend+Truncation pairing.
-            bool hasOverwrite  = union.Contains("Data Overwrite");
-            bool hasExtend     = union.Contains("Data Extend");
-            bool hasTruncation = union.Contains("Data Truncation");
-            if (hasOverwrite && !(hasExtend && hasTruncation)) return ReplaceType.Hex;
+            if (MatchesStepByStep(seq, HexPatternRows) || MatchesAccumulated(union, HexPatternRows)) return ReplaceType.Hex;
 
             return ReplaceType.Unknown;
         }
 
         /// <summary>
         /// Step-by-step match: every pattern row must appear — in order, gaps allowed —
-        /// as a SUBSET of some record in the sequence.
-        /// (record can have MORE tokens than the pattern row, but must have AT LEAST all of them)
+        /// as a SUBSET of some record in the sequence (record may have MORE tokens than
+        /// the pattern row, but must have AT LEAST all of them).
         /// </summary>
         private static bool MatchesStepByStep(List<HashSet<string>> seq, HashSet<string>[] patternRows)
         {
@@ -1053,13 +1063,11 @@ namespace SSForensic.Services
 
         /// <summary>
         /// Accumulated match: the union of ALL tokens in the event group is a superset of
-        /// the LAST (most complete) row of the pattern.
-        /// This covers the case where the journal flushes all flags in a single record.
+        /// the LAST (most complete) row of the pattern. Covers journal flushes that merge
+        /// every flag into a single record.
         /// </summary>
         private static bool MatchesAccumulated(HashSet<string> union, HashSet<string>[] patternRows)
         {
-            // The last row of every pattern is the most complete — it contains all the tokens
-            // that must have been emitted for this replace type to have occurred.
             var lastRow = patternRows[patternRows.Length - 1];
             return union.IsSupersetOf(lastRow);
         }

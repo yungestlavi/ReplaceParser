@@ -48,27 +48,28 @@ namespace SSForensic.Views
                 return rt switch
                 {
                     ReplaceType.Explorer =>
-                        "Windows Explorer rename-over replace.\n" +
-                        "Pattern: File Delete+Close → Rename Old Name → Rename New Name → Rename New Name+Close.\n" +
-                        "The target file was deleted then the source was renamed into its slot.",
+                        "Sostituzione tramite Windows Explorer (drag-and-drop o copia con stesso nome).\n" +
+                        "Pattern: File delete+Close → Rename: old name → Rename: new name → Rename: new name+Close.\n" +
+                        "Il file di destinazione viene eliminato e il nuovo file rinominato al suo posto.",
 
                     ReplaceType.Copy =>
-                        "Copy-paste overwrite (Ctrl+C / Ctrl+V or drag-drop).\n" +
-                        "Pattern: Data Truncation (±Security Change) → Data Extend+Truncation → Data Overwrite+Extend+Truncation (±BasicInfo ±Close).\n" +
-                        "Typical of dragging a file onto an existing one in Explorer or using robocopy/xcopy.",
+                        "Sostituzione tramite copia (Ctrl+C/Ctrl+V, drag-drop, robocopy/xcopy).\n" +
+                        "Pattern: Data truncation (±Security change) → Data extend+truncation → Data overwrite+extend+truncation (±Basic info change ±Close).\n" +
+                        "Tipico di un file copiato sopra uno esistente.",
 
                     ReplaceType.Type =>
-                        "Typed or echo-redirect overwrite (e.g. 'type file > target', echo redirect, or small in-place editor).\n" +
-                        "Pattern: Data Truncation → Data Extend+Truncation (±Close).\n" +
-                        "No Data Overwrite means the file was truncated first, then re-written sequentially.",
+                        "Sostituzione tramite scrittura sequenziale (comando 'type', redirect echo, piccolo editor).\n" +
+                        "Pattern: Data truncation → Data extend+truncation (±Close).\n" +
+                        "Nessun 'Data overwrite': il file viene troncato e poi riscritto in sequenza.",
 
                     ReplaceType.Hex =>
-                        "Raw / hex-editor write (direct Data Overwrite without the standard Extend+Truncation sequence).\n" +
-                        "Typical of hex editors, low-level file patchers, or tools that open a file with GENERIC_WRITE and write in-place.",
+                        "Scrittura diretta/raw (editor hex, patcher binario, scrittura GENERIC_WRITE in-place).\n" +
+                        "Pattern: Data extend → Data overwrite+extend → Data overwrite+extend+Close.\n" +
+                        "Nessun 'Data truncation': il file non viene troncato, solo sovrascritto direttamente.",
 
                     _ =>
-                        "Replace type could not be determined from the USN reason sequence.\n" +
-                        "The event pattern did not match Explorer, Copy, Type, or Hex signatures."
+                        "Tipo di replace non determinabile dalla sequenza USN.\n" +
+                        "L'evento non corrisponde a nessuno dei pattern Explorer, Copy, Type o HEX."
                 };
             }
             return "Unknown";
