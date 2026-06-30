@@ -265,12 +265,12 @@ namespace SSForensic.Services
 
                 if (IsKnownWindowsPath(rec.ReplacementPath) || IsKnownWindowsPath(rec.OriginalPath))
                 {
-                    DebugLog($"[DROPPED@KnownWindowsPath] {rec.Name}");
+                    DebugLog($"[DROPPED@KnownWindowsPath] {rec.ReplacementFileName}");
                     Interlocked.Increment(ref dropped); return;
                 }
                 if (rec.ReplacementTrust == FileTrust.Legit && IsTrustedSigner(rec.ReplacementSigner))
                 {
-                    DebugLog($"[DROPPED@TrustedSigner] {rec.Name} Signer={rec.ReplacementSigner}");
+                    DebugLog($"[DROPPED@TrustedSigner] {rec.ReplacementFileName} Signer={rec.ReplacementSigner}");
                     Interlocked.Increment(ref dropped); return;
                 }
 
@@ -278,12 +278,12 @@ namespace SSForensic.Services
 
                 if (!isCheatLike && IsLegitMinecraftClientFile(rec))
                 {
-                    DebugLog($"[DROPPED@MinecraftClientFile] {rec.Name}");
+                    DebugLog($"[DROPPED@MinecraftClientFile] {rec.ReplacementFileName}");
                     Interlocked.Increment(ref dropped); return;
                 }
                 if (!isCheatLike && IsLikelyAutomatedReplace(rec, batchTimestamps))
                 {
-                    DebugLog($"[DROPPED@AutomatedReplace] {rec.Name}");
+                    DebugLog($"[DROPPED@AutomatedReplace] {rec.ReplacementFileName}");
                     Interlocked.Increment(ref dropped); return;
                 }
 
@@ -761,7 +761,7 @@ namespace SSForensic.Services
                 }
                 var reasonList738 = events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList();
                 record.DetectedReplaceType = DetectReplaceType(reasonList738);
-                DebugLog($"[FASTPATH] {record.Name} | Reasons=[{string.Join(" || ", reasonList738)}] | Detected={record.DetectedReplaceType}");
+                DebugLog($"[FASTPATH] {record.ReplacementFileName} | Reasons=[{string.Join(" || ", reasonList738)}] | Detected={record.DetectedReplaceType}");
                 // Discard records whose USN sequence doesn't match any known replace pattern.
                 if (record.DetectedReplaceType == ReplaceType.Unknown) return null;
                 return record;
@@ -862,7 +862,7 @@ namespace SSForensic.Services
             // ---- Pattern-match the replace type from the USN reason sequence ----
             var reasonList839 = events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList();
             record.DetectedReplaceType = DetectReplaceType(reasonList839);
-            DebugLog($"[NORMAL] {record.Name} | Reasons=[{string.Join(" || ", reasonList839)}] | Detected={record.DetectedReplaceType}");
+            DebugLog($"[NORMAL] {record.ReplacementFileName} | Reasons=[{string.Join(" || ", reasonList839)}] | Detected={record.DetectedReplaceType}");
 
             // Discard records whose USN sequence doesn't match any known replace pattern.
             if (record.DetectedReplaceType == ReplaceType.Unknown) return null;
