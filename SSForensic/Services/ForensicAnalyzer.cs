@@ -125,7 +125,9 @@ namespace SSForensic.Services
         {
             @"\Desktop", @"\Downloads", @"\Documents", @"\Music",
             @"\Videos", @"\Pictures", @"\OneDrive\Desktop", @"\OneDrive\Documents",
-            @"\Saved Games", @"\source\repos", @"\Projects"
+            @"\Saved Games", @"\source\repos", @"\Projects",
+            @"\Desktop\", @"\Downloads\", @"\Documents\",
+            @"\test", @"\tests", @"\prova", @"\sample", @"\samples"
         };
 
         private static readonly string[] TrustedSignerKeywords =
@@ -492,10 +494,21 @@ namespace SSForensic.Services
 
         private static bool IsLikelyAutomatedReplace(ReplaceRecord rec, HashSet<DateTime> batchTimestamps)
         {
+            // Files in known user-action folders (Desktop, Downloads, Documents, etc.)
+            // are NEVER considered automated, even if multiple replaces happen in the
+            // same second. A human doing quick manual tests will always use these paths.
+            string repPath = rec.ReplacementPath ?? "";
+            string oriPath = rec.OriginalPath ?? "";
+            foreach (var folder in UserActionFolders)
+            {
+                if (repPath.IndexOf(folder, StringComparison.OrdinalIgnoreCase) >= 0) return false;
+                if (oriPath.IndexOf(folder, StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            }
+
             foreach (var marker in AutomatedPathMarkers)
             {
-                if (rec.ReplacementPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                if (rec.OriginalPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                if (repPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                if (oriPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0) return true;
             }
             if (rec.ReplaceTimestamp.HasValue)
             {
