@@ -221,6 +221,9 @@ namespace SSForensic.Services
 
             var candidateUsn = allRelevant.Where(r => r.IsReplace).ToList();
             StatusUpdate?.Invoke($"USN: {totalUsn} total, {candidateUsn.Count} replace candidates [{sw.Elapsed.TotalSeconds:F1}s]");
+            DebugLog($"[CANDIDATES] Total={totalUsn} Candidates(IsReplace=true)={candidateUsn.Count}");
+            foreach (var name in candidateUsn.Select(r => r.FileName).Distinct(StringComparer.OrdinalIgnoreCase))
+                DebugLog($"[CANDIDATES]   -> {name}");
 
             var batchTimestamps = candidateUsn
                 .GroupBy(r => new DateTime(r.Timestamp.Year, r.Timestamp.Month, r.Timestamp.Day,
@@ -253,15 +256,36 @@ namespace SSForensic.Services
             {
                 var ordered = group.OrderBy(r => r.Timestamp).ToList();
                 var rec = BuildReplaceRecord(group.Key, ordered, fileIndex, multiIndex, renameMap);
-                if (rec == null) return;
+                if (rec == null)
+                {
+                    var names = ordered.Select(o => o.FileName).Distinct(StringComparer.OrdinalIgnoreCase);
+                    DebugLog($"[DROPPED@BuildReplaceRecord=null] FRN={group.Key} Names=[{string.Join(",", names)}]");
+                    return;
+                }
 
-                if (IsKnownWindowsPath(rec.ReplacementPath) || IsKnownWindowsPath(rec.OriginalPath)) { Interlocked.Increment(ref dropped); return; }
-                if (rec.ReplacementTrust == FileTrust.Legit && IsTrustedSigner(rec.ReplacementSigner)) { Interlocked.Increment(ref dropped); return; }
+                if (IsKnownWindowsPath(rec.ReplacementPath) || IsKnownWindowsPath(rec.OriginalPath))
+                {
+                    DebugLog($"[DROPPED@KnownWindowsPath] {rec.Name}");
+                    Interlocked.Increment(ref dropped); return;
+                }
+                if (rec.ReplacementTrust == FileTrust.Legit && IsTrustedSigner(rec.ReplacementSigner))
+                {
+                    DebugLog($"[DROPPED@TrustedSigner] {rec.Name} Signer={rec.ReplacementSigner}");
+                    Interlocked.Increment(ref dropped); return;
+                }
 
                 bool isCheatLike = rec.ReplacementTrust == FileTrust.Cheat;
 
-                if (!isCheatLike && IsLegitMinecraftClientFile(rec)) { Interlocked.Increment(ref dropped); return; }
-                if (!isCheatLike && IsLikelyAutomatedReplace(rec, batchTimestamps)) { Interlocked.Increment(ref dropped); return; }
+                if (!isCheatLike && IsLegitMinecraftClientFile(rec))
+                {
+                    DebugLog($"[DROPPED@MinecraftClientFile] {rec.Name}");
+                    Interlocked.Increment(ref dropped); return;
+                }
+                if (!isCheatLike && IsLikelyAutomatedReplace(rec, batchTimestamps))
+                {
+                    DebugLog($"[DROPPED@AutomatedReplace] {rec.Name}");
+                    Interlocked.Increment(ref dropped); return;
+                }
 
                 bag.Add(rec);
                 int d = Interlocked.Increment(ref done);
@@ -735,8 +759,9 @@ namespace SSForensic.Services
                         RawData = $"USN={ev.Usn} FRN={ev.FileReferenceNumber} Reason=0x{ev.Reason:X8}"
                     });
                 }
-                record.DetectedReplaceType = DetectReplaceType(
-                    events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList());
+                var reasonList738 = events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList();
+                record.DetectedReplaceType = DetectReplaceType(reasonList738);
+                DebugLog($"[FASTPATH] {record.Name} | Reasons=[{string.Join(" || ", reasonList738)}] | Detected={record.DetectedReplaceType}");
                 // Discard records whose USN sequence doesn't match any known replace pattern.
                 if (record.DetectedReplaceType == ReplaceType.Unknown) return null;
                 return record;
@@ -835,8 +860,9 @@ namespace SSForensic.Services
             }
 
             // ---- Pattern-match the replace type from the USN reason sequence ----
-            record.DetectedReplaceType = DetectReplaceType(
-                events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList());
+            var reasonList839 = events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList();
+            record.DetectedReplaceType = DetectReplaceType(reasonList839);
+            DebugLog($"[NORMAL] {record.Name} | Reasons=[{string.Join(" || ", reasonList839)}] | Detected={record.DetectedReplaceType}");
 
             // Discard records whose USN sequence doesn't match any known replace pattern.
             if (record.DetectedReplaceType == ReplaceType.Unknown) return null;
@@ -883,6 +909,28 @@ namespace SSForensic.Services
                 _ => false
             };
         }
+        private static readonly object _logLock = new();
+        private static readonly string _logPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            "ReplaceParser_debug.log");
+
+        /// <summary>
+        /// TEMPORARY diagnostic logger - writes to a file on the Desktop so we can see
+        /// exactly which USN events survive each filtering stage. Remove once the
+        /// pattern-matching / filtering pipeline is confirmed working end-to-end.
+        /// </summary>
+        private static void DebugLog(string message)
+        {
+            try
+            {
+                lock (_logLock)
+                {
+                    File.AppendAllText(_logPath, $"{DateTime.Now:HH:mm:ss.fff} {message}{Environment.NewLine}");
+                }
+            }
+            catch { /* never let logging crash the analyzer */ }
+        }
+
         // ============================================================
         //  REPLACE-TYPE PATTERN MATCHING  (real JournalTrace tokens)
         // ============================================================
