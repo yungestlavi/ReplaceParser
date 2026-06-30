@@ -961,61 +961,11 @@ namespace SSForensic.Services
         private static HashSet<string> Row(params string[] tokens)
             => new HashSet<string>(tokens, StringComparer.OrdinalIgnoreCase);
 
-        // EXPLORER: rename-over via Windows Explorer drag-drop
-        private static readonly HashSet<string>[] ExplorerPatternRows =
-        {
-            Row("FILE_DELETE", "CLOSE"),
-            Row("RENAME_OLD"),
-            Row("RENAME_NEW"),
-            Row("RENAME_NEW", "CLOSE"),
-        };
-
-        // COPY pattern 1: with SECURITY_CHANGE (cross-volume / ACL-preserving copy)
-        private static readonly HashSet<string>[] CopyPattern1Rows =
-        {
-            Row("DATA_TRUNCATION", "SECURITY_CHANGE"),
-            Row("DATA_EXTEND", "DATA_TRUNCATION", "SECURITY_CHANGE"),
-            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "SECURITY_CHANGE"),
-            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "SECURITY_CHANGE", "BASIC_INFO_CHANGE"),
-            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "SECURITY_CHANGE", "BASIC_INFO_CHANGE", "CLOSE"),
-        };
-
-        // COPY pattern 2: without SECURITY_CHANGE (plain same-volume copy-paste / drag-drop)
-        private static readonly HashSet<string>[] CopyPattern2Rows =
-        {
-            Row("DATA_TRUNCATION"),
-            Row("DATA_EXTEND", "DATA_TRUNCATION"),
-            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION"),
-            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "BASIC_INFO_CHANGE"),
-            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "BASIC_INFO_CHANGE", "CLOSE"),
-        };
-
-        // TYPE pattern 1: truncate then re-extend with Close
-        private static readonly HashSet<string>[] TypePattern1Rows =
-        {
-            Row("DATA_EXTEND", "DATA_TRUNCATION"),
-            Row("DATA_EXTEND", "DATA_TRUNCATION", "CLOSE"),
-        };
-
-        // TYPE pattern 2: short truncate+extend chain (no Close)
-        private static readonly HashSet<string>[] TypePattern2Rows =
-        {
-            Row("DATA_TRUNCATION"),
-            Row("DATA_EXTEND", "DATA_TRUNCATION"),
-        };
-
-        // HEX: raw/direct write — DATA_EXTEND/DATA_OVERWRITE but NO DATA_TRUNCATION
-        private static readonly HashSet<string>[] HexPatternRows =
-        {
-            Row("DATA_EXTEND"),
-            Row("DATA_OVERWRITE", "DATA_EXTEND"),
-            Row("DATA_OVERWRITE", "DATA_EXTEND", "CLOSE"),
-        };
-
-        // ── NOISE TOKENS ────────────────────────────────────────────────────────
-        // Tokens that indicate an automated OS/installer operation, never a
-        // deliberate user replace. If ANY of these appears in the USN sequence
-        // the record is discarded immediately (Unknown).
+        // ── NOISE TOKENS ─────────────────────────────────────────────────────────
+        // Tokens that indicate automated OS/installer operations.
+        // If ANY of these appears in the full USN sequence → not a user replace → Unknown.
+        // NOTE: FILE_DELETE is excluded from this list because it is part of the
+        // Explorer pattern. Explorer is checked BEFORE the noise gate with its own whitelist.
         private static readonly HashSet<string> NoiseTokens = new(StringComparer.OrdinalIgnoreCase)
         {
             "FILE_CREATE",
@@ -1032,12 +982,12 @@ namespace SSForensic.Services
             "EA_CHANGE",
         };
 
-        // ── TOKEN WHITELISTS per replace type ────────────────────────────────────
-        // Only tokens in the whitelist are expected for that type.
+        // ── TOKEN WHITELISTS ─────────────────────────────────────────────────────
+        // Only these tokens are expected for each type.
         // Any extra token (not in the whitelist) → reject → Unknown.
         private static readonly HashSet<string> ExplorerAllowed = new(StringComparer.OrdinalIgnoreCase)
         {
-            "FILE_DELETE", "CLOSE", "RENAME_OLD", "RENAME_NEW"
+            "FILE_DELETE", "RENAME_OLD", "RENAME_NEW", "CLOSE"
         };
         private static readonly HashSet<string> CopyAllowed = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -1046,18 +996,115 @@ namespace SSForensic.Services
         };
         private static readonly HashSet<string> TypeAllowed = new(StringComparer.OrdinalIgnoreCase)
         {
-            "DATA_TRUNCATION", "DATA_EXTEND", "CLOSE"
+            "DATA_TRUNCATION", "DATA_EXTEND", "BASIC_INFO_CHANGE", "CLOSE"
         };
         private static readonly HashSet<string> HexAllowed = new(StringComparer.OrdinalIgnoreCase)
         {
             "DATA_EXTEND", "DATA_OVERWRITE", "CLOSE"
         };
 
+        // ── PATTERN ROWS (exact tokens from real JournalTrace captures) ──────────
+        // Separator in ReasonString is "|" (no spaces), tokens are UPPERCASE_UNDERSCORE.
+        //
+        // EXPLORER:
+        //   FILE_DELETE|CLOSE  →  RENAME_OLD  →  RENAME_NEW  →  RENAME_NEW|CLOSE
+        //
+        // COPY pattern 1 (with SECURITY_CHANGE):
+        //   DATA_TRUNCATION|SECURITY_CHANGE
+        //   DATA_EXTEND|DATA_TRUNCATION|SECURITY_CHANGE
+        //   DATA_OVERWRITE|DATA_EXTEND|DATA_TRUNCATION|SECURITY_CHANGE
+        //   DATA_OVERWRITE|DATA_EXTEND|DATA_TRUNCATION|SECURITY_CHANGE|BASIC_INFO_CHANGE
+        //   DATA_OVERWRITE|DATA_EXTEND|DATA_TRUNCATION|SECURITY_CHANGE|BASIC_INFO_CHANGE|CLOSE
+        //
+        // COPY pattern 2 (no SECURITY_CHANGE):
+        //   DATA_TRUNCATION
+        //   DATA_EXTEND|DATA_TRUNCATION
+        //   DATA_OVERWRITE|DATA_EXTEND|DATA_TRUNCATION
+        //   DATA_OVERWRITE|DATA_EXTEND|DATA_TRUNCATION|BASIC_INFO_CHANGE
+        //   DATA_OVERWRITE|DATA_EXTEND|DATA_TRUNCATION|BASIC_INFO_CHANGE|CLOSE
+        //
+        // TYPE pattern 1:
+        //   DATA_EXTEND|DATA_TRUNCATION
+        //   DATA_EXTEND|DATA_TRUNCATION|CLOSE
+        //
+        // TYPE pattern 2:
+        //   DATA_TRUNCATION
+        //   DATA_EXTEND|DATA_TRUNCATION
+        //
+        // TYPE pattern 3 (with BASIC_INFO_CHANGE, seen on some systems):
+        //   DATA_TRUNCATION|BASIC_INFO_CHANGE
+        //   DATA_TRUNCATION|BASIC_INFO_CHANGE|CLOSE
+        //
+        // HEX pattern 1:
+        //   DATA_EXTEND
+        //   DATA_OVERWRITE|DATA_EXTEND
+        //   DATA_OVERWRITE|DATA_EXTEND|CLOSE
+        //
+        // HEX pattern 2 (short, no leading DATA_EXTEND):
+        //   DATA_OVERWRITE|DATA_EXTEND
+        //   DATA_OVERWRITE|DATA_EXTEND|CLOSE
+
+        private static readonly HashSet<string>[] ExplorerPatternRows =
+        {
+            Row("FILE_DELETE", "CLOSE"),
+            Row("RENAME_OLD"),
+            Row("RENAME_NEW"),
+            Row("RENAME_NEW", "CLOSE"),
+        };
+
+        private static readonly HashSet<string>[] CopyPattern1Rows =
+        {
+            Row("DATA_TRUNCATION", "SECURITY_CHANGE"),
+            Row("DATA_EXTEND", "DATA_TRUNCATION", "SECURITY_CHANGE"),
+            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "SECURITY_CHANGE"),
+            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "SECURITY_CHANGE", "BASIC_INFO_CHANGE"),
+            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "SECURITY_CHANGE", "BASIC_INFO_CHANGE", "CLOSE"),
+        };
+
+        private static readonly HashSet<string>[] CopyPattern2Rows =
+        {
+            Row("DATA_TRUNCATION"),
+            Row("DATA_EXTEND", "DATA_TRUNCATION"),
+            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION"),
+            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "BASIC_INFO_CHANGE"),
+            Row("DATA_OVERWRITE", "DATA_EXTEND", "DATA_TRUNCATION", "BASIC_INFO_CHANGE", "CLOSE"),
+        };
+
+        private static readonly HashSet<string>[] TypePattern1Rows =
+        {
+            Row("DATA_EXTEND", "DATA_TRUNCATION"),
+            Row("DATA_EXTEND", "DATA_TRUNCATION", "CLOSE"),
+        };
+
+        private static readonly HashSet<string>[] TypePattern2Rows =
+        {
+            Row("DATA_TRUNCATION"),
+            Row("DATA_EXTEND", "DATA_TRUNCATION"),
+        };
+
+        private static readonly HashSet<string>[] TypePattern3Rows =
+        {
+            Row("DATA_TRUNCATION", "BASIC_INFO_CHANGE"),
+            Row("DATA_TRUNCATION", "BASIC_INFO_CHANGE", "CLOSE"),
+        };
+
+        private static readonly HashSet<string>[] HexPattern1Rows =
+        {
+            Row("DATA_EXTEND"),
+            Row("DATA_OVERWRITE", "DATA_EXTEND"),
+            Row("DATA_OVERWRITE", "DATA_EXTEND", "CLOSE"),
+        };
+
+        private static readonly HashSet<string>[] HexPattern2Rows =
+        {
+            Row("DATA_OVERWRITE", "DATA_EXTEND"),
+            Row("DATA_OVERWRITE", "DATA_EXTEND", "CLOSE"),
+        };
+
         private static ReplaceType DetectReplaceType(List<string> reasonStrings)
         {
             if (reasonStrings.Count == 0) return ReplaceType.Unknown;
 
-            // Build per-record token sets. Separator is "|" (no spaces).
             var seq = reasonStrings
                 .Select(rs => new HashSet<string>(
                     rs.Split('|', StringSplitOptions.RemoveEmptyEntries)
@@ -1068,43 +1115,39 @@ namespace SSForensic.Services
 
             if (seq.Count == 0) return ReplaceType.Unknown;
 
-            // Union of ALL tokens seen across every record in this event group.
             var union = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var s in seq) union.UnionWith(s);
 
-            // If ANY noise token is present → automated machine action → discard.
-            // Exception: FILE_DELETE is noise everywhere EXCEPT Explorer pattern,
-            // where it is the first step. We handle that by checking Explorer BEFORE
-            // the noise gate, using its own whitelist.
-
-            // Explorer: checked first with its own whitelist (FILE_DELETE is allowed here).
+            // Explorer is checked first with its own whitelist (FILE_DELETE is valid here).
             if (union.IsSubsetOf(ExplorerAllowed) &&
                 MatchesStepByStep(seq, ExplorerPatternRows))
                 return ReplaceType.Explorer;
 
-            // For all other types, any noise token → Unknown immediately.
+            // All other types: any noise token → automated operation → discard.
             if (union.Overlaps(NoiseTokens)) return ReplaceType.Unknown;
 
-            // Copy: must have DATA_OVERWRITE; checked before Type.
+            // Copy: requires DATA_OVERWRITE, whitelist allows SECURITY_CHANGE + BASIC_INFO_CHANGE.
             if (union.Contains("DATA_OVERWRITE") &&
                 union.IsSubsetOf(CopyAllowed) &&
                 (MatchesStepByStep(seq, CopyPattern1Rows) || MatchesAccumulated(union, CopyPattern1Rows) ||
                  MatchesStepByStep(seq, CopyPattern2Rows) || MatchesAccumulated(union, CopyPattern2Rows)))
                 return ReplaceType.Copy;
 
-            // Type: no DATA_OVERWRITE; only extend+truncation chain.
+            // Type: no DATA_OVERWRITE; only truncation+extend chain (±BASIC_INFO_CHANGE).
             if (!union.Contains("DATA_OVERWRITE") &&
                 union.IsSubsetOf(TypeAllowed) &&
                 (MatchesStepByStep(seq, TypePattern1Rows) || MatchesAccumulated(union, TypePattern1Rows) ||
-                 MatchesStepByStep(seq, TypePattern2Rows) || MatchesAccumulated(union, TypePattern2Rows)))
+                 MatchesStepByStep(seq, TypePattern2Rows) || MatchesAccumulated(union, TypePattern2Rows) ||
+                 MatchesStepByStep(seq, TypePattern3Rows) || MatchesAccumulated(union, TypePattern3Rows)))
                 return ReplaceType.Type;
 
-            // Hex: DATA_OVERWRITE + DATA_EXTEND but NO DATA_TRUNCATION.
+            // Hex: DATA_OVERWRITE + DATA_EXTEND, no DATA_TRUNCATION.
             if (union.Contains("DATA_OVERWRITE") &&
                 union.Contains("DATA_EXTEND") &&
                 !union.Contains("DATA_TRUNCATION") &&
                 union.IsSubsetOf(HexAllowed) &&
-                (MatchesStepByStep(seq, HexPatternRows) || MatchesAccumulated(union, HexPatternRows)))
+                (MatchesStepByStep(seq, HexPattern1Rows) || MatchesAccumulated(union, HexPattern1Rows) ||
+                 MatchesStepByStep(seq, HexPattern2Rows) || MatchesAccumulated(union, HexPattern2Rows)))
                 return ReplaceType.Hex;
 
             return ReplaceType.Unknown;
