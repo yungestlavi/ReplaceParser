@@ -1138,7 +1138,9 @@ namespace SSForensic.Services
         // Any extra token (not in the whitelist) → reject → Unknown.
         private static readonly HashSet<string> ExplorerAllowed = new(StringComparer.OrdinalIgnoreCase)
         {
-            "FILE_DELETE", "RENAME_OLD", "RENAME_NEW", "CLOSE"
+            // FILE_DELETE belongs to the DELETED file's FRN, never the renamed one.
+            // The surviving file (renamed over the target) only shows RENAME_OLD/NEW/CLOSE.
+            "RENAME_OLD", "RENAME_NEW", "CLOSE"
         };
         private static readonly HashSet<string> CopyAllowed = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -1197,7 +1199,6 @@ namespace SSForensic.Services
 
         private static readonly HashSet<string>[] ExplorerPatternRows =
         {
-            Row("FILE_DELETE", "CLOSE"),
             Row("RENAME_OLD"),
             Row("RENAME_NEW"),
             Row("RENAME_NEW", "CLOSE"),
