@@ -296,8 +296,120 @@ namespace SSForensic.Services
 
             ProgressUpdate?.Invoke(100);
             var results = bag.OrderByDescending(r => r.ReplaceTimestamp).ToList();
+
+            // ── DAILY CACHE ─────────────────────────────────────────────────────
+            // Save today's results to disk and merge with any records from earlier
+            // scans today that are no longer in the current scan window.
+            // Cache file: %APPDATA%\ReplaceParser\cache_YYYY-MM-DD.json
+            results = MergeWithDailyCache(results, driveLetter);
+
             StatusUpdate?.Invoke($"DONE: {results.Count} user-action records ({dropped} system/auto filtered) in {sw.Elapsed.TotalSeconds:F1}s.");
             return results;
+        }
+
+        // ── DAILY CACHE IMPLEMENTATION ───────────────────────────────────────────
+
+        private static string GetCachePath(string driveLetter)
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "ReplaceParser");
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, $"cache_{driveLetter}_{DateTime.UtcNow:yyyy-MM-dd}.json");
+        }
+
+        private static List<ReplaceRecord> MergeWithDailyCache(List<ReplaceRecord> fresh, string driveLetter)
+        {
+            var cachePath = GetCachePath(driveLetter);
+            var cached = LoadCachedRecords(cachePath);
+
+            // Merge: keep cached records whose key (FileName+Timestamp) is not already
+            // in the fresh list, then prepend fresh results. This preserves records
+            // from earlier scans today that have since dropped out of the journal window.
+            var freshKeys = new HashSet<string>(
+                fresh.Select(r => CacheKey(r)),
+                StringComparer.OrdinalIgnoreCase);
+
+            var merged = fresh.Concat(
+                cached.Where(c => !freshKeys.Contains(CacheKey(c))))
+                .OrderByDescending(r => r.ReplaceTimestamp)
+                .ToList();
+
+            SaveCachedRecords(cachePath, merged);
+            return merged;
+        }
+
+        private static string CacheKey(ReplaceRecord r)
+            => $"{r.ReplacementFileName}|{r.ReplaceTimestamp:O}|{r.ReplacementPath}";
+
+        private static List<ReplaceRecord> LoadCachedRecords(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return new List<ReplaceRecord>();
+                var json = File.ReadAllText(path);
+                var opts = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                return System.Text.Json.JsonSerializer.Deserialize<List<CachedRecord>>(json, opts)
+                    ?.Select(c => c.ToReplaceRecord()).ToList()
+                    ?? new List<ReplaceRecord>();
+            }
+            catch { return new List<ReplaceRecord>(); }
+        }
+
+        private static void SaveCachedRecords(string path, List<ReplaceRecord> records)
+        {
+            try
+            {
+                var toSave = records.Select(r => CachedRecord.FromReplaceRecord(r)).ToList();
+                var opts = new System.Text.Json.JsonSerializerOptions { WriteIndented = false };
+                File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(toSave, opts));
+            }
+            catch { /* never crash the analyzer due to cache write failures */ }
+        }
+
+        /// <summary>Minimal serializable snapshot of a ReplaceRecord for the daily cache.</summary>
+        private class CachedRecord
+        {
+            public string? FileName       { get; set; }
+            public string? OriginalPath   { get; set; }
+            public string? ReplacementPath{ get; set; }
+            public DateTime? Timestamp    { get; set; }
+            public string? Extension      { get; set; }
+            public string? Signature      { get; set; }
+            public string? ReplaceType    { get; set; }
+            public string? OriginalSigner { get; set; }
+            public string? ReplacementSigner { get; set; }
+            public string? Trust          { get; set; }
+
+            public static CachedRecord FromReplaceRecord(ReplaceRecord r) => new()
+            {
+                FileName        = r.ReplacementFileName,
+                OriginalPath    = r.OriginalPath,
+                ReplacementPath = r.ReplacementPath,
+                Timestamp       = r.ReplaceTimestamp,
+                Extension       = r.DeclaredExtension,
+                Signature       = r.SignatureVerdict,
+                ReplaceType     = r.DetectedReplaceType.ToString(),
+                OriginalSigner  = r.OriginalSigner,
+                ReplacementSigner = r.ReplacementSigner,
+                Trust           = r.ReplacementTrust.ToString(),
+            };
+
+            public ReplaceRecord ToReplaceRecord() => new()
+            {
+                ReplacementFileName = FileName ?? "",
+                OriginalFileName    = FileName ?? "",
+                OriginalPath        = OriginalPath ?? "(cached)",
+                ReplacementPath     = ReplacementPath ?? "(cached)",
+                ReplaceTimestamp    = Timestamp,
+                DeclaredExtension   = Extension ?? "",
+                SignatureVerdict     = Signature ?? "",
+                DetectedReplaceType = Enum.TryParse<ReplaceType>(ReplaceType, out var rt) ? rt : Models.ReplaceType.Unknown,
+                OriginalSigner      = OriginalSigner ?? "",
+                ReplacementSigner   = ReplacementSigner ?? "",
+                ReplacementTrust    = Enum.TryParse<FileTrust>(Trust, out var ft) ? ft : FileTrust.Unknown,
+                OriginalTrust       = Enum.TryParse<FileTrust>(Trust, out var ft2) ? ft2 : FileTrust.Unknown,
+            };
         }
 
         // ============================================================
@@ -714,10 +826,34 @@ namespace SSForensic.Services
                     originalPath = infos.OrderBy(i => i.Created).First().Path;
                     replacementPath = infos.OrderByDescending(i => i.Created).First().Path;
                 }
-                else if (infos.Count == 1) originalPath = replacementPath = infos[0].Path;
+                else if (infos.Count == 1) { replacementPath = infos[0].Path; originalPath = infos[0].Path; }
             }
-            else if (paths.Count == 1) originalPath = replacementPath = paths[0];
-            else if (fileIndex.TryGetValue(filename, out var single)) originalPath = replacementPath = single;
+            else if (paths.Count == 1) { replacementPath = paths[0]; originalPath = paths[0]; }
+            else if (fileIndex.TryGetValue(filename, out var single)) { replacementPath = single; originalPath = single; }
+
+            // ── ORIGINAL PATH FIX ────────────────────────────────────────────────
+            // When original and replacement path are the same (file replaced in-place),
+            // try to reconstruct the original path using the earliest USN event's FileName.
+            // After a rename+replace, the earliest events record the OLD filename, which
+            // gives us a different path to show as the "original".
+            if (string.Equals(originalPath, replacementPath, StringComparison.OrdinalIgnoreCase))
+            {
+                var firstEvent = events.OrderBy(e => e.Usn).First();
+                string firstFilename = firstEvent.FileName;
+
+                // If the first event has a different filename (pre-rename), look it up.
+                if (!string.Equals(firstFilename, filename, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (multiIndex.TryGetValue(firstFilename, out var origPaths) && origPaths.Count > 0)
+                        originalPath = origPaths[0];
+                    else if (fileIndex.TryGetValue(firstFilename, out var origSingle))
+                        originalPath = origSingle;
+                    else
+                        // File was deleted/moved; at least record the old filename in the path.
+                        originalPath = Path.Combine(
+                            Path.GetDirectoryName(replacementPath) ?? "", firstFilename);
+                }
+            }
 
             var record = new ReplaceRecord
             {
