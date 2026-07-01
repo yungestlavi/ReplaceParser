@@ -78,4 +78,45 @@ namespace SSForensic.Views
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => throw new NotSupportedException();
     }
+
+    /// <summary>Background brush for Trust badge (solid color pill).</summary>
+    public sealed class TrustToBadgeBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            string trust = value?.ToString() ?? "";
+            return trust switch
+            {
+                "Cheat"    => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C0392B")),
+                "Legit"    => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60")),
+                "Unsigned" => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E67E22")),
+                "Spoofed"  => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8E44AD")),
+                _          => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A5568"))
+            };
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>Background brush for ReplaceType badge (solid color pill).</summary>
+    public sealed class ReplaceTypeToBadgeBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is ReplaceType rt)
+            {
+                return rt switch
+                {
+                    ReplaceType.Explorer => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2980B9")),
+                    ReplaceType.Copy     => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D4A017")),
+                    ReplaceType.Type     => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60")),
+                    ReplaceType.Hex      => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C0392B")),
+                    _                    => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A5568"))
+                };
+            }
+            return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A5568"));
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
 }
