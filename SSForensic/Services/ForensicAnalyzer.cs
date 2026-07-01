@@ -773,7 +773,8 @@ namespace SSForensic.Services
                     });
                 }
                 var reasonList738 = events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList();
-                record.DetectedReplaceType = DetectReplaceType(reasonList738);
+                var tsList738    = events.OrderBy(e => e.Usn).Select(e => e.Timestamp).ToList();
+                record.DetectedReplaceType = DetectReplaceType(reasonList738, tsList738);
                 DebugLog($"[FASTPATH] {record.ReplacementFileName} | Reasons=[{string.Join(" || ", reasonList738)}] | Detected={record.DetectedReplaceType}");
                 // Discard records whose USN sequence doesn't match any known replace pattern.
                 if (record.DetectedReplaceType == ReplaceType.Unknown) return null;
@@ -874,7 +875,8 @@ namespace SSForensic.Services
 
             // ---- Pattern-match the replace type from the USN reason sequence ----
             var reasonList839 = events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList();
-            record.DetectedReplaceType = DetectReplaceType(reasonList839);
+            var tsList839     = events.OrderBy(e => e.Usn).Select(e => e.Timestamp).ToList();
+            record.DetectedReplaceType = DetectReplaceType(reasonList839, tsList839);
             DebugLog($"[NORMAL] {record.ReplacementFileName} | Reasons=[{string.Join(" || ", reasonList839)}] | Detected={record.DetectedReplaceType}");
 
             // Discard records whose USN sequence doesn't match any known replace pattern.
@@ -1114,11 +1116,12 @@ namespace SSForensic.Services
             Row("DATA_OVERWRITE", "DATA_EXTEND", "CLOSE"),
         };
 
-        private static ReplaceType DetectReplaceType(List<string> reasonStrings)
+        private static ReplaceType DetectReplaceType(List<string> reasonStrings, List<DateTime>? timestamps = null)
         {
             if (reasonStrings.Count == 0) return ReplaceType.Unknown;
 
-            var seq = reasonStrings
+            // Build per-record token sets. Separator is "|" (no spaces).
+            var allRecords = reasonStrings
                 .Select(rs => new HashSet<string>(
                     rs.Split('|', StringSplitOptions.RemoveEmptyEntries)
                       .Select(t => t.Trim()),
@@ -1126,27 +1129,61 @@ namespace SSForensic.Services
                 .Where(s => s.Count > 0)
                 .ToList();
 
+            if (allRecords.Count == 0) return ReplaceType.Unknown;
+
+            // ── SESSION ISOLATION ─────────────────────────────────────────────────
+            // The USN journal groups all records by FRN (file reference number).
+            // This means a sequence may contain records from MULTIPLE operations:
+            //   1. The original FILE_CREATE when the file was first downloaded/created
+            //   2. The actual user replace (the event we want to detect)
+            //
+            // We isolate the LAST SESSION: the contiguous group of records at the
+            // end of the sequence that are clustered in time (within 5 seconds of
+            // each other). Records separated by a gap > 5 seconds from the last
+            // record belong to an earlier operation and are discarded.
+            //
+            // If no timestamps are available, fall back to using the whole sequence.
+            List<HashSet<string>> seq;
+            if (timestamps != null && timestamps.Count == allRecords.Count)
+            {
+                var lastTime = timestamps[timestamps.Count - 1];
+                int startIdx = 0;
+                for (int i = timestamps.Count - 1; i >= 0; i--)
+                {
+                    if ((lastTime - timestamps[i]).TotalSeconds > 5)
+                    {
+                        startIdx = i + 1;
+                        break;
+                    }
+                }
+                seq = allRecords.Skip(startIdx).ToList();
+            }
+            else
+            {
+                seq = allRecords;
+            }
+
             if (seq.Count == 0) return ReplaceType.Unknown;
 
             var union = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var s in seq) union.UnionWith(s);
 
-            // Explorer is checked first with its own whitelist (FILE_DELETE is valid here).
+            // Explorer is checked first with its own whitelist (FILE_DELETE valid here).
             if (union.IsSubsetOf(ExplorerAllowed) &&
                 MatchesStepByStep(seq, ExplorerPatternRows))
                 return ReplaceType.Explorer;
 
-            // All other types: any noise token → automated operation → discard.
+            // For all other types: any noise token in the session → discard.
             if (union.Overlaps(NoiseTokens)) return ReplaceType.Unknown;
 
-            // Copy: requires DATA_OVERWRITE, whitelist allows SECURITY_CHANGE + BASIC_INFO_CHANGE.
+            // Copy: requires DATA_OVERWRITE.
             if (union.Contains("DATA_OVERWRITE") &&
                 union.IsSubsetOf(CopyAllowed) &&
                 (MatchesStepByStep(seq, CopyPattern1Rows) || MatchesAccumulated(union, CopyPattern1Rows) ||
                  MatchesStepByStep(seq, CopyPattern2Rows) || MatchesAccumulated(union, CopyPattern2Rows)))
                 return ReplaceType.Copy;
 
-            // Type: no DATA_OVERWRITE; only truncation+extend chain (±BASIC_INFO_CHANGE).
+            // Type: no DATA_OVERWRITE.
             if (!union.Contains("DATA_OVERWRITE") &&
                 union.IsSubsetOf(TypeAllowed) &&
                 (MatchesStepByStep(seq, TypePattern1Rows) || MatchesAccumulated(union, TypePattern1Rows) ||
