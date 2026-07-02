@@ -18,11 +18,11 @@
     </Window.DataContext>
 
     <Window.Resources>
-        <!-- ReplaceType converters -->
         <local:ReplaceTypeToBrushConverter       x:Key="ReplaceTypeToBrush"/>
         <local:ReplaceTypeToDescriptionConverter x:Key="ReplaceTypeToDescription"/>
         <local:TrustToBadgeBrushConverter        x:Key="TrustToBadgeBrush"/>
         <local:ReplaceTypeToBadgeBrushConverter  x:Key="ReplaceTypeToBadgeBrush"/>
+        <local:RomeTimestampConverter             x:Key="RomeTimestamp"/>
     </Window.Resources>
 
     <Grid>
@@ -37,53 +37,66 @@
             <RowDefinition Height="Auto"/>   <!-- Status bar -->
         </Grid.RowDefinitions>
 
-        <!-- ===== TOP TOOLBAR: search + options + action buttons ===== -->
-        <Border Grid.Row="0" Background="{StaticResource BgHeader}" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="10,8">
+        <!-- ===== TOP TOOLBAR: neon title + search + action buttons ===== -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="14,10">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#07070A" Offset="0"/>
+                    <GradientStop Color="#0F0A18" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="320"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="300"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Search box -->
-                <TextBox Grid.Column="0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                         Background="#1F2125" Foreground="{StaticResource TextPrimary}"
-                         BorderBrush="{StaticResource Border1}" BorderThickness="1"
-                         Padding="8,5" VerticalAlignment="Center" Tag="Search..."/>
+                <!-- Neon title -->
+                <TextBlock Grid.Column="0" Text="Replace Parser"
+                           FontFamily="Segoe UI Black, Segoe UI Bold, Segoe UI" FontSize="17" FontWeight="Black"
+                           VerticalAlignment="Center">
+                    <TextBlock.Foreground>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#D070FF" Offset="0"/>
+                            <GradientStop Color="#FF80FF" Offset="1"/>
+                        </LinearGradientBrush>
+                    </TextBlock.Foreground>
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="#C050FF" BlurRadius="16" ShadowDepth="0" Opacity="0.85"/>
+                    </TextBlock.Effect>
+                </TextBlock>
 
-                <!-- Checkboxes -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="20,0,0,0" VerticalAlignment="Center">
-                    <CheckBox IsChecked="{Binding DetectSuspiciousExt}" Foreground="{StaticResource TextPrimary}" Margin="0,0,20,0">
+                <!-- Search box -->
+                <TextBox Grid.Column="2" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Background="#0D0A18" Foreground="{StaticResource TextPrimary}"
+                         BorderBrush="{StaticResource Border2}" BorderThickness="1"
+                         Padding="10,6" VerticalAlignment="Center"
+                         FontFamily="Segoe UI" Tag="Search..."/>
+
+                <!-- Modified Extensions checkbox -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                    <CheckBox IsChecked="{Binding DetectSuspiciousExt}" Foreground="{StaticResource TextSecondary}" Margin="0,0,20,0">
                         <TextBlock Text="Modified Extensions"/>
                     </CheckBox>
                 </StackPanel>
 
-                <!-- Spacer -->
-                <Grid Grid.Column="2"/>
-
-                <!-- Action buttons -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                <!-- Action buttons (neon oval) -->
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Command="{Binding RunAnalysisCommand}"
                             IsEnabled="{Binding IsAnalyzing, Converter={StaticResource InvertBooleanConverter}}"
-                            Background="#3D4147" Foreground="{StaticResource TextPrimary}"
-                            BorderBrush="{StaticResource Border1}" BorderThickness="1"
-                            Padding="14,6" Margin="0,0,6,0" Content="Parse again"/>
+                            Style="{StaticResource NeonButton}" Margin="0,0,8,0" Content="Parse again"/>
                     <Button Command="{Binding CancelCommand}"
                             IsEnabled="{Binding IsAnalyzing}"
-                            Background="#3D4147" Foreground="{StaticResource TextPrimary}"
-                            BorderBrush="{StaticResource Border1}" BorderThickness="1"
-                            Padding="14,6" Margin="0,0,6,0" Content="Cancel"/>
+                            Style="{StaticResource NeonButton}" Margin="0,0,8,0" Content="Cancel"/>
                     <Button Command="{Binding OpenServicesCommand}"
-                            Background="#3D4147" Foreground="{StaticResource TextPrimary}"
-                            BorderBrush="{StaticResource Border1}" BorderThickness="1"
-                            Padding="14,6" Margin="0,0,6,0" Content="Services"/>
+                            Style="{StaticResource NeonButton}" Margin="0,0,8,0" Content="Services"/>
                     <Button Command="{Binding CheckUpdatesCommand}"
                             IsEnabled="{Binding IsCheckingUpdate, Converter={StaticResource InvertBooleanConverter}}"
-                            Background="#3D4147" Foreground="{StaticResource TextPrimary}"
-                            BorderBrush="{StaticResource Border1}" BorderThickness="1"
-                            Padding="14,6" Content="Check Updates"/>
+                            Style="{StaticResource NeonButton}" Content="Check Updates"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -183,7 +196,7 @@
                   materialDesign:DataGridAssist.CellPadding="8,2"
                   materialDesign:DataGridAssist.ColumnHeaderPadding="8,4">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Replace Time" Binding="{Binding ReplaceTimestamp, StringFormat=yyyy-MM-dd HH:mm:ss}" Width="155">
+                <DataGridTextColumn Header="Replace Time (IT)" Binding="{Binding ReplaceTimestamp, Converter={StaticResource RomeTimestamp}}" Width="175">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontFamily" Value="Consolas"/>

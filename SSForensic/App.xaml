@@ -24,79 +24,138 @@
             <SolidColorBrush x:Key="ColorNoSignature"     Color="#E06C75"/>
             <SolidColorBrush x:Key="ColorExtSpoofed"      Color="#C678DD"/>
 
-            <!-- Forensic-tool palette (PrefetchView++ / BAM parser style) -->
-            <SolidColorBrush x:Key="BgBase"        Color="#2A2D31"/>
-            <SolidColorBrush x:Key="BgHeader"      Color="#33363B"/>
-            <SolidColorBrush x:Key="BgPanel"       Color="#2F3236"/>
-            <SolidColorBrush x:Key="BgPanelAlt"    Color="#2A2D31"/>
-            <SolidColorBrush x:Key="BgRow"         Color="#2A2D31"/>
-            <SolidColorBrush x:Key="BgRowAlt"      Color="#2F3236"/>
-            <SolidColorBrush x:Key="BgSelected"    Color="#3D4148"/>
-            <SolidColorBrush x:Key="Border1"       Color="#3D4147"/>
-            <SolidColorBrush x:Key="Border2"       Color="#4A4E55"/>
-            <SolidColorBrush x:Key="TextPrimary"   Color="#D7D7D7"/>
-            <SolidColorBrush x:Key="TextSecondary" Color="#A0A0A0"/>
-            <SolidColorBrush x:Key="TextMuted"     Color="#7A7A7A"/>
-            <SolidColorBrush x:Key="Accent"        Color="#5FA8D3"/>
-            <SolidColorBrush x:Key="AccentDim"     Color="#3A6E8E"/>
+            <!-- ── Dark/Neon palette ── -->
+            <SolidColorBrush x:Key="BgBase"        Color="#0D0D0F"/>
+            <SolidColorBrush x:Key="BgHeader"      Color="#111114"/>
+            <SolidColorBrush x:Key="BgPanel"       Color="#13131A"/>
+            <SolidColorBrush x:Key="BgPanelAlt"    Color="#0D0D0F"/>
+            <SolidColorBrush x:Key="BgRow"         Color="#0D0D0F"/>
+            <SolidColorBrush x:Key="BgRowAlt"      Color="#13131A"/>
+            <SolidColorBrush x:Key="BgSelected"    Color="#1E1A2E"/>
+            <SolidColorBrush x:Key="Border1"       Color="#2A2040"/>
+            <SolidColorBrush x:Key="Border2"       Color="#3D2E60"/>
+            <SolidColorBrush x:Key="TextPrimary"   Color="#E8E8F0"/>
+            <SolidColorBrush x:Key="TextSecondary" Color="#9090B0"/>
+            <SolidColorBrush x:Key="TextMuted"     Color="#55556A"/>
+            <SolidColorBrush x:Key="Accent"        Color="#B57BFF"/>
+            <SolidColorBrush x:Key="AccentDim"     Color="#6B3FA0"/>
             <SolidColorBrush x:Key="SignedGreen"   Color="#7EC07E"/>
             <SolidColorBrush x:Key="UnsignedRed"   Color="#E06C75"/>
 
-            <!-- Named text styles used via x:Key (never implicit) -->
+            <!-- Neon purple glow colors -->
+            <Color x:Key="NeonPurple">#C084FF</Color>
+            <Color x:Key="NeonPink">#E06CFF</Color>
+            <SolidColorBrush x:Key="NeonPurpleBrush" Color="#C084FF"/>
+            <SolidColorBrush x:Key="NeonPinkBrush"   Color="#E06CFF"/>
+
+            <!-- Text styles -->
             <Style x:Key="TitleText" TargetType="TextBlock">
-                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontFamily" Value="Segoe UI Semibold, Segoe UI"/>
                 <Setter Property="FontSize" Value="18"/>
                 <Setter Property="Foreground" Value="#E6E6E6"/>
             </Style>
             <Style x:Key="LabelText" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="FontSize" Value="11"/>
-                <Setter Property="Foreground" Value="#A0A0A0"/>
+                <Setter Property="Foreground" Value="#9090B0"/>
             </Style>
             <Style x:Key="MonoText" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="Consolas, Courier New, monospace"/>
                 <Setter Property="FontSize" Value="11.5"/>
-                <Setter Property="Foreground" Value="#D7D7D7"/>
+                <Setter Property="Foreground" Value="#E8E8F0"/>
             </Style>
 
-            <!-- Named button styles (referenced explicitly, safe) -->
-            <Style x:Key="FlatButton" TargetType="Button">
-                <Setter Property="Background" Value="#3D4147"/>
-                <Setter Property="Foreground" Value="#D7D7D7"/>
-                <Setter Property="BorderBrush" Value="#3D4147"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Padding" Value="12,6"/>
+            <!-- ── Neon oval button style ── -->
+            <Style x:Key="NeonButton" TargetType="Button">
+                <Setter Property="Foreground" Value="#F0E0FF"/>
+                <Setter Property="FontFamily" Value="Segoe UI Semibold, Segoe UI"/>
                 <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Padding" Value="18,7"/>
                 <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="b" Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="2">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                  Margin="{TemplateBinding Padding}"/>
+                            <Border x:Name="b" CornerRadius="20"
+                                    Padding="{TemplateBinding Padding}">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#7B2FBE" Offset="0"/>
+                                        <GradientStop Color="#C06BFF" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#C084FF" BlurRadius="12" ShadowDepth="0" Opacity="0.7"/>
+                                </Border.Effect>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="b" Property="Background" Value="#474B52"/>
+                                    <Setter TargetName="b" Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#9B3FDE" Offset="0"/>
+                                                <GradientStop Color="#E080FF" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter TargetName="b" Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect Color="#E06CFF" BlurRadius="18" ShadowDepth="0" Opacity="0.9"/>
+                                        </Setter.Value>
+                                    </Setter>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="b" Property="Background" Value="#34383E"/>
+                                    <Setter TargetName="b" Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#5B1F9E" Offset="0"/>
+                                                <GradientStop Color="#A050DF" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="b" Property="Opacity" Value="0.4"/>
+                                    <Setter TargetName="b" Property="Opacity" Value="0.35"/>
+                                    <Setter TargetName="b" Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect Color="#C084FF" BlurRadius="4" ShadowDepth="0" Opacity="0.2"/>
+                                        </Setter.Value>
+                                    </Setter>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
             </Style>
-            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource FlatButton}"/>
-            <Style x:Key="FilterChip" TargetType="Button" BasedOn="{StaticResource FlatButton}">
+
+            <!-- Keep FlatButton as alias for backward compat -->
+            <Style x:Key="FlatButton" TargetType="Button" BasedOn="{StaticResource NeonButton}"/>
+            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource NeonButton}"/>
+            <Style x:Key="FilterChip" TargetType="Button">
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Foreground" Value="#9090B0"/>
+                <Setter Property="FontFamily" Value="Segoe UI Semibold, Segoe UI"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Padding" Value="10,4"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="b" Background="Transparent" CornerRadius="12" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#1E1A2E"/>
+                                    <Setter Property="Foreground" Value="#C084FF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
         </ResourceDictionary>

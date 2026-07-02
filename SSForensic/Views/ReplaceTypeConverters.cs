@@ -79,6 +79,33 @@ namespace SSForensic.Views
             => throw new NotSupportedException();
     }
 
+    /// <summary>Converts a UTC DateTime to Europe/Rome local time for display.</summary>
+    public sealed class RomeTimestampConverter : IValueConverter
+    {
+        private static readonly TimeZoneInfo _rome =
+            TimeZoneInfo.FindSystemTimeZoneById("Romance Standard Time") is { } tz ? tz
+            : TimeZoneInfo.FindSystemTimeZoneById("Europe/Rome");
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            DateTime? dt = value switch
+            {
+                DateTime d    => d,
+                DateTime? nd  => nd,
+                _             => null
+            };
+            if (dt == null || dt.Value == default) return "";
+            var local = TimeZoneInfo.ConvertTimeFromUtc(
+                dt.Value.Kind == DateTimeKind.Utc ? dt.Value : DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc),
+                _rome);
+            string fmt = parameter as string ?? "yyyy-MM-dd HH:mm:ss";
+            return local.ToString(fmt) + " (IT)";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
     /// <summary>Background brush for Trust badge (solid color pill).</summary>
     public sealed class TrustToBadgeBrushConverter : IValueConverter
     {

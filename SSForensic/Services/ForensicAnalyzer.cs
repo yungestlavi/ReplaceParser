@@ -809,10 +809,12 @@ namespace SSForensic.Services
             string filename = events.Last().FileName;
             if (renameMap.TryGetValue(frn, out var ren)) filename = ren.NewName;
 
+            var orderedEvents = events.OrderBy(e => e.Usn).ToList();
             var paths = multiIndex.TryGetValue(filename, out var pl) ? pl : new List<string>();
-            string originalPath = "(file moved or deleted)";
+            string originalPath    = "(file moved or deleted)";
             string replacementPath = "(file moved or deleted)";
 
+            // Primary: use physical file paths found on disk.
             if (paths.Count >= 2)
             {
                 var infos = paths.Select(p =>
@@ -823,7 +825,7 @@ namespace SSForensic.Services
 
                 if (infos.Count >= 2)
                 {
-                    originalPath = infos.OrderBy(i => i.Created).First().Path;
+                    originalPath    = infos.OrderBy(i => i.Created).First().Path;
                     replacementPath = infos.OrderByDescending(i => i.Created).First().Path;
                 }
                 else if (infos.Count == 1) { replacementPath = infos[0].Path; originalPath = infos[0].Path; }
@@ -831,28 +833,31 @@ namespace SSForensic.Services
             else if (paths.Count == 1) { replacementPath = paths[0]; originalPath = paths[0]; }
             else if (fileIndex.TryGetValue(filename, out var single)) { replacementPath = single; originalPath = single; }
 
-            // ── ORIGINAL PATH FIX ────────────────────────────────────────────────
-            // When original and replacement path are the same (file replaced in-place),
-            // try to reconstruct the original path using the earliest USN event's FileName.
-            // After a rename+replace, the earliest events record the OLD filename, which
-            // gives us a different path to show as the "original".
+            // ── PATH FIX ─────────────────────────────────────────────────────────
+            // When original == replacement, try to distinguish source from destination
+            // using the USN event history.
             if (string.Equals(originalPath, replacementPath, StringComparison.OrdinalIgnoreCase))
             {
-                var firstEvent = events.OrderBy(e => e.Usn).First();
+                // Case A: first event has a different filename (rename before replace).
+                var firstEvent    = orderedEvents.First();
                 string firstFilename = firstEvent.FileName;
 
-                // If the first event has a different filename (pre-rename), look it up.
                 if (!string.Equals(firstFilename, filename, StringComparison.OrdinalIgnoreCase))
                 {
+                    // The file was renamed — firstFilename is the pre-rename original.
                     if (multiIndex.TryGetValue(firstFilename, out var origPaths) && origPaths.Count > 0)
                         originalPath = origPaths[0];
                     else if (fileIndex.TryGetValue(firstFilename, out var origSingle))
                         originalPath = origSingle;
                     else
-                        // File was deleted/moved; at least record the old filename in the path.
                         originalPath = Path.Combine(
                             Path.GetDirectoryName(replacementPath) ?? "", firstFilename);
                 }
+                // Case B: same filename throughout — for Copy/HEX the original file was
+                // overwritten in-place. We mark the original path as the pre-replace state
+                // of the same file (path is identical, content changed — this is expected).
+                // The USN journal cannot give us the source path since it only records
+                // writes to the destination FRN, not reads from the source.
             }
 
             var record = new ReplaceRecord
