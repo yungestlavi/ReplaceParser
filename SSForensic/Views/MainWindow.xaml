@@ -283,7 +283,7 @@
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,12">
                             <StackPanel>
                                 <TextBlock Text="ORIGINAL FILE" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold" LetterSpacing="1.5" Margin="0,0,0,10"/>
+                                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
                                 <!-- Name -->
                                 <TextBlock Text="Name" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
@@ -331,7 +331,7 @@
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,12">
                             <StackPanel>
                                 <TextBlock Text="REPLACEMENT FILE" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold" LetterSpacing="1.5" Margin="0,0,0,10"/>
+                                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
                                 <!-- Name -->
                                 <TextBlock Text="Name" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
@@ -379,7 +379,7 @@
                                 <!-- Signature -->
                                 <Separator Margin="0,4,0,8" Background="{StaticResource Border1}"/>
                                 <TextBlock Text="SIGNATURE" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold" LetterSpacing="1.5" Margin="0,0,0,6"/>
+                                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,6"/>
                                 <TextBlock Text="{Binding SelectedRecord.SignatureVerdict}" FontSize="11" Margin="0,0,0,4"/>
                                 <TextBlock Text="{Binding SelectedRecord.SignatureDetails}" TextWrapping="Wrap"
                                            FontFamily="Consolas" FontSize="10.5" Opacity="0.8" Margin="0,0,0,8"/>
@@ -387,7 +387,7 @@
                                 <!-- YARA -->
                                 <Separator Margin="0,4,0,8" Background="{StaticResource Border1}"/>
                                 <TextBlock Text="YARA MATCHES" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold" LetterSpacing="1.5" Margin="0,0,0,6"/>
+                                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,6"/>
                                 <ItemsControl ItemsSource="{Binding SelectedRecord.YaraMatches}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -406,7 +406,7 @@
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <Border Grid.Row="0" Padding="14,10,14,6" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1">
                                 <TextBlock Text="USN TIMELINE" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold" LetterSpacing="1.5"/>
+                                           FontSize="10" FontWeight="SemiBold"/>
                             </Border>
                             <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedEvidence}" AutoGenerateColumns="False" IsReadOnly="True"
                                       Background="Transparent" BorderThickness="0"
