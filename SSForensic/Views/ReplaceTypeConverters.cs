@@ -97,7 +97,7 @@ namespace SSForensic.Views
         {
             DateTime? dt = null;
             if (value is DateTime d) dt = d;
-            else if (value is DateTime? nd) dt = nd;
+            else if (value != null && value.GetType() == typeof(DateTime?)) dt = (DateTime?)value;
             if (dt == null || dt.Value == default) return "";
             var local = TimeZoneInfo.ConvertTimeFromUtc(
                 dt.Value.Kind == DateTimeKind.Utc ? dt.Value : DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc),
