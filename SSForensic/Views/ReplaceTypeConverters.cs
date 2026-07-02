@@ -82,18 +82,22 @@ namespace SSForensic.Views
     /// <summary>Converts a UTC DateTime to Europe/Rome local time for display.</summary>
     public sealed class RomeTimestampConverter : IValueConverter
     {
-        private static readonly TimeZoneInfo _rome =
-            TimeZoneInfo.FindSystemTimeZoneById("Romance Standard Time") is { } tz ? tz
-            : TimeZoneInfo.FindSystemTimeZoneById("Europe/Rome");
+        private static readonly TimeZoneInfo _rome = GetRomeTz();
+
+        private static TimeZoneInfo GetRomeTz()
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById("Romance Standard Time"); }
+            catch { }
+            try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/Rome"); }
+            catch { }
+            return TimeZoneInfo.Local;
+        }
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            DateTime? dt = value switch
-            {
-                DateTime d    => d,
-                DateTime? nd  => nd,
-                _             => null
-            };
+            DateTime? dt = null;
+            if (value is DateTime d) dt = d;
+            else if (value is DateTime? nd) dt = nd;
             if (dt == null || dt.Value == default) return "";
             var local = TimeZoneInfo.ConvertTimeFromUtc(
                 dt.Value.Kind == DateTimeKind.Utc ? dt.Value : DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc),
