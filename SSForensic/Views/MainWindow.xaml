@@ -7,7 +7,10 @@
         Title="Replace Parser"
         Icon="/app.ico"
         Height="900" Width="1500"
+        MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResizeWithGrip"
         Background="{StaticResource BgBase}"
         TextElement.Foreground="{StaticResource TextPrimary}"
         FontFamily="Segoe UI"
@@ -28,17 +31,140 @@
     <Grid>
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="38"/>     <!-- Custom titlebar -->
                 <RowDefinition Height="Auto"/>   <!-- Top toolbar: search + checkboxes + buttons -->
-            <RowDefinition Height="Auto"/>   <!-- Drive + extensions row -->
-            <RowDefinition Height="Auto"/>   <!-- Filter chips -->
-            <RowDefinition Height="*" MinHeight="200"/>   <!-- Main grid -->
-            <RowDefinition Height="4"/>      <!-- Splitter -->
+                <RowDefinition Height="Auto"/>   <!-- Drive + extensions row -->
+                <RowDefinition Height="Auto"/>   <!-- Filter chips -->
+                <RowDefinition Height="*" MinHeight="200"/>   <!-- Main grid -->
+                <RowDefinition Height="4"/>      <!-- Splitter -->
+                <RowDefinition Height="280" MinHeight="100"/> <!-- Details -->
+                <RowDefinition Height="Auto"/>   <!-- Status bar -->
+            </Grid.RowDefinitions>
+
+            <!-- ===== CUSTOM TITLEBAR ===== -->
+            <Border Grid.Row="0" x:Name="TitleBar"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                    BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#05050A" Offset="0"/>
+                        <GradientStop Color="#0A0515" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- App icon + neon title -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <Image Source="/app.ico" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Replace Parser" VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Black, Segoe UI Bold" FontSize="14" FontWeight="Black">
+                            <TextBlock.Foreground>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#D070FF" Offset="0"/>
+                                    <GradientStop Color="#FF80FF" Offset="1"/>
+                                </LinearGradientBrush>
+                            </TextBlock.Foreground>
+                            <TextBlock.Effect>
+                                <DropShadowEffect Color="#C050FF" BlurRadius="14" ShadowDepth="0" Opacity="0.9"/>
+                            </TextBlock.Effect>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Window controls: minimize / maximize / close -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch">
+                        <Button Click="MinimizeBtn_Click" Width="46" Height="38"
+                                Background="Transparent" BorderThickness="0"
+                                Foreground="{StaticResource TextSecondary}"
+                                FontFamily="Marlett" FontSize="10" Content="0"
+                                ToolTip="Minimizza">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#1A1A2A"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Click="MaximizeBtn_Click" Width="46" Height="38"
+                                Foreground="{StaticResource TextSecondary}"
+                                FontFamily="Marlett" FontSize="10" Content="1"
+                                ToolTip="Massimizza">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#1A1A2A"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Click="CloseBtn_Click" Width="46" Height="38"
+                                Foreground="{StaticResource TextSecondary}"
+                                FontFamily="Marlett" FontSize="10" Content="r"
+                                ToolTip="Chiudi">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="b" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="b" Property="Background" Value="#8B0000"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
             <RowDefinition Height="280" MinHeight="100"/> <!-- Details -->
             <RowDefinition Height="Auto"/>   <!-- Status bar -->
         </Grid.RowDefinitions>
 
         <!-- ===== TOP TOOLBAR: neon title + search + action buttons ===== -->
-        <Border Grid.Row="0" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="14,10">
+        <Border Grid.Row="1" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="14,10">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                     <GradientStop Color="#07070A" Offset="0"/>
@@ -47,45 +173,28 @@
             </Border.Background>
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="20"/>
                     <ColumnDefinition Width="300"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Neon title -->
-                <TextBlock Grid.Column="0" Text="Replace Parser"
-                           FontFamily="Segoe UI Black, Segoe UI Bold, Segoe UI" FontSize="17" FontWeight="Black"
-                           VerticalAlignment="Center">
-                    <TextBlock.Foreground>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Color="#D070FF" Offset="0"/>
-                            <GradientStop Color="#FF80FF" Offset="1"/>
-                        </LinearGradientBrush>
-                    </TextBlock.Foreground>
-                    <TextBlock.Effect>
-                        <DropShadowEffect Color="#C050FF" BlurRadius="16" ShadowDepth="0" Opacity="0.85"/>
-                    </TextBlock.Effect>
-                </TextBlock>
-
                 <!-- Search box -->
-                <TextBox Grid.Column="2" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                <TextBox Grid.Column="0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          Background="#0D0A18" Foreground="{StaticResource TextPrimary}"
                          BorderBrush="{StaticResource Border2}" BorderThickness="1"
                          Padding="10,6" VerticalAlignment="Center"
                          FontFamily="Segoe UI" Tag="Search..."/>
 
                 <!-- Modified Extensions checkbox -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
                     <CheckBox IsChecked="{Binding DetectSuspiciousExt}" Foreground="{StaticResource TextSecondary}" Margin="0,0,20,0">
                         <TextBlock Text="Modified Extensions"/>
                     </CheckBox>
                 </StackPanel>
 
                 <!-- Action buttons (neon oval) -->
-                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Command="{Binding RunAnalysisCommand}"
                             IsEnabled="{Binding IsAnalyzing, Converter={StaticResource InvertBooleanConverter}}"
                             Style="{StaticResource NeonButton}" Margin="0,0,8,0" Content="Parse again"/>
@@ -102,7 +211,7 @@
         </Border>
 
         <!-- ===== DRIVE + EXTENSIONS ROW ===== -->
-        <Border Grid.Row="1" Background="{StaticResource BgHeader}" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="10,6">
+        <Border Grid.Row="2" Background="{StaticResource BgHeader}" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="10,6">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Drive:" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <TextBox Width="42" Text="{Binding DriveLetter, UpdateSourceTrigger=PropertyChanged}"
@@ -128,7 +237,7 @@
         </Border>
 
         <!-- ===== FILTER CHIPS ===== -->
-        <Border Grid.Row="2" Background="{StaticResource BgHeader}" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="10,4">
+        <Border Grid.Row="3" Background="{StaticResource BgHeader}" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="10,4">
             <StackPanel Orientation="Horizontal">
                 <Button Command="{Binding SetFilterCommand}" CommandParameter="ALL"
                         Background="Transparent" Foreground="{StaticResource TextPrimary}" BorderThickness="0"
@@ -186,7 +295,7 @@
         </Border>
 
         <!-- ===== MAIN GRID ===== -->
-        <DataGrid Grid.Row="3" ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord}"
+        <DataGrid Grid.Row="4" ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord}"
                   MouseDoubleClick="RecordsGrid_MouseDoubleClick"
                   AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                   Background="{StaticResource BgBase}" Foreground="{StaticResource TextPrimary}"
@@ -266,11 +375,11 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <GridSplitter Grid.Row="4" Height="4" HorizontalAlignment="Stretch" Background="{StaticResource Border1}"
+        <GridSplitter Grid.Row="5" Height="4" HorizontalAlignment="Stretch" Background="{StaticResource Border1}"
                       ResizeBehavior="PreviousAndNext" Cursor="SizeNS" ShowsPreview="True"/>
 
         <!-- ===== DETAILS ===== -->
-        <Border Grid.Row="5" Background="{StaticResource BgHeader}" BorderBrush="{StaticResource Border1}" BorderThickness="0,1,0,0" Padding="0">
+        <Border Grid.Row="6" Background="{StaticResource BgHeader}" BorderBrush="{StaticResource Border1}" BorderThickness="0,1,0,0" Padding="0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -470,7 +579,7 @@
         </Border>
 
         <!-- ===== STATUS BAR ===== -->
-        <Border Grid.Row="6" Background="{StaticResource BgHeader}" BorderBrush="{StaticResource Border1}" BorderThickness="0,1,0,0" Padding="10,5">
+        <Border Grid.Row="7" Background="{StaticResource BgHeader}" BorderBrush="{StaticResource Border1}" BorderThickness="0,1,0,0" Padding="10,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>

@@ -13,9 +13,33 @@ namespace SSForensic.Views
             InitializeComponent();
         }
 
+        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+            {
+                WindowState = WindowState == WindowState.Maximized
+                    ? WindowState.Normal
+                    : WindowState.Maximized;
+            }
+            else
+            {
+                DragMove();
+            }
+        }
+
+        private void MinimizeBtn_Click(object sender, RoutedEventArgs e)
+            => WindowState = WindowState.Minimized;
+
+        private void MaximizeBtn_Click(object sender, RoutedEventArgs e)
+            => WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+
+        private void CloseBtn_Click(object sender, RoutedEventArgs e)
+            => Close();
+
         private void RecordsGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            // Only react to double-clicks on an actual row, not headers/scrollbars.
             if (e.OriginalSource is DependencyObject src && FindParentRow(src) == null)
                 return;
 
