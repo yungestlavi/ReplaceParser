@@ -159,9 +159,6 @@
                     </StackPanel>
                 </Grid>
             </Border>
-            <RowDefinition Height="280" MinHeight="100"/> <!-- Details -->
-            <RowDefinition Height="Auto"/>   <!-- Status bar -->
-        </Grid.RowDefinitions>
 
         <!-- ===== TOP TOOLBAR: neon title + search + action buttons ===== -->
         <Border Grid.Row="1" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="14,10">
