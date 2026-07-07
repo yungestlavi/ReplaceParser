@@ -205,13 +205,11 @@ namespace SSForensic.Services
                     string ext = Path.GetExtension(rec.FileName);
 
                     if (SystemArtifactExtensions.Contains(ext)) { skippedSystem++; continue; }
-                    if (IsSystemProcessArtifact(rec.FileName)) { skippedSystem++; continue; }
 
                     bool inEnabled = EnabledExtensions.Contains(ext);
                     bool isUnknownExt = !string.IsNullOrEmpty(ext) && !WellKnownExtensions.Contains(ext);
 
                     if (!inEnabled && !(DetectSuspiciousExtensions && isUnknownExt)) continue;
-                    if (LooksLikeWindowsComponentByName(rec.FileName)) { skippedSystem++; continue; }
 
                     allRelevant.Add(rec);
                     if (totalUsn % 50000 == 0)
@@ -265,11 +263,6 @@ namespace SSForensic.Services
                     return;
                 }
 
-                if (IsKnownWindowsPath(rec.ReplacementPath) || IsKnownWindowsPath(rec.OriginalPath))
-                {
-                    DebugLog($"[DROPPED@KnownWindowsPath] {rec.ReplacementFileName}");
-                    Interlocked.Increment(ref dropped); return;
-                }
                 if (rec.ReplacementTrust == FileTrust.Legit && IsTrustedSigner(rec.ReplacementSigner))
                 {
                     DebugLog($"[DROPPED@TrustedSigner] {rec.ReplacementFileName} Signer={rec.ReplacementSigner}");
@@ -606,31 +599,30 @@ namespace SSForensic.Services
 
         private static bool IsLikelyAutomatedReplace(ReplaceRecord rec, HashSet<DateTime> batchTimestamps)
         {
-            // Files in known user-action folders (Desktop, Downloads, Documents, etc.)
-            // are NEVER considered automated, even if multiple replaces happen in the
-            // same second. A human doing quick manual tests will always use these paths.
             string repPath = rec.ReplacementPath ?? "";
             string oriPath = rec.OriginalPath ?? "";
+
+            // Batch timestamp check: if ≥4 different files were replaced in the same
+            // second AND the file is not in a known user-action folder → likely automated.
+            bool inUserFolder = false;
             foreach (var folder in UserActionFolders)
             {
-                if (repPath.IndexOf(folder, StringComparison.OrdinalIgnoreCase) >= 0) return false;
-                if (oriPath.IndexOf(folder, StringComparison.OrdinalIgnoreCase) >= 0) return false;
+                if (repPath.IndexOf(folder, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    oriPath.IndexOf(folder, StringComparison.OrdinalIgnoreCase) >= 0)
+                { inUserFolder = true; break; }
             }
 
-            foreach (var marker in AutomatedPathMarkers)
-            {
-                if (repPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                if (oriPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-            }
-            if (rec.ReplaceTimestamp.HasValue)
+            if (!inUserFolder && rec.ReplaceTimestamp.HasValue)
             {
                 var t = rec.ReplaceTimestamp.Value;
                 var sec = new DateTime(t.Year, t.Month, t.Day, t.Hour, t.Minute, t.Second, DateTimeKind.Utc);
                 if (batchTimestamps.Contains(sec)) return true;
             }
-            if (HasVersionFolder(rec.ReplacementPath) || HasVersionFolder(rec.OriginalPath)) return true;
 
-            bool pathsMissing = rec.ReplacementPath.StartsWith("(") && rec.OriginalPath.StartsWith("(");
+            // Version folder check: path like \1.2.3\ = installer/updater.
+            if (HasVersionFolder(repPath) || HasVersionFolder(oriPath)) return true;
+
+            bool pathsMissing = repPath.StartsWith("(") && oriPath.StartsWith("(");
             if (pathsMissing) return true;
 
             return false;
@@ -754,7 +746,6 @@ namespace SSForensic.Services
             string dir, HashSet<string> wantedNames, Stopwatch budget, TimeSpan maxBudget, CancellationToken ct)
         {
             if (budget.Elapsed > maxBudget || ct.IsCancellationRequested) yield break;
-            if (IsKnownWindowsPath(dir)) yield break;
 
             var opts = new EnumerationOptions
             {
