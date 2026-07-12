@@ -31,6 +31,50 @@
         <local:TrustToBadgeBrushConverter        x:Key="TrustToBadgeBrush"/>
         <local:ReplaceTypeToBadgeBrushConverter  x:Key="ReplaceTypeToBadgeBrush"/>
         <local:RomeTimestampConverter             x:Key="RomeTimestamp"/>
+
+        <!-- Neon ContextMenu style -->
+        <Style x:Key="NeonContextMenu" TargetType="ContextMenu">
+            <Setter Property="Background" Value="#0F0A1A"/>
+            <Setter Property="BorderBrush" Value="#3D2060"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="0,4"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#9040FF" BlurRadius="18" ShadowDepth="0" Opacity="0.4"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Neon MenuItem style -->
+        <Style x:Key="NeonMenuItem" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="#D0D0E8"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="16,7"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#1E1030"/>
+                                <Setter Property="Foreground" Value="#C084FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Neon Separator style -->
+        <Style x:Key="NeonSeparator" TargetType="Separator">
+            <Setter Property="Background" Value="#2A1848"/>
+            <Setter Property="Margin" Value="8,3"/>
+            <Setter Property="Height" Value="1"/>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -311,6 +355,19 @@
                   HorizontalGridLinesBrush="#3D4147"
                   materialDesign:DataGridAssist.CellPadding="8,2"
                   materialDesign:DataGridAssist.ColumnHeaderPadding="8,4">
+            <DataGrid.ContextMenu>
+                <ContextMenu Style="{StaticResource NeonContextMenu}">
+                    <MenuItem Header="📋  Copy Original Path"  Click="CopyOriginalPath_Click"
+                              Style="{StaticResource NeonMenuItem}"/>
+                    <MenuItem Header="📋  Copy Replacement Path" Click="CopyReplacementPath_Click"
+                              Style="{StaticResource NeonMenuItem}"/>
+                    <Separator Style="{StaticResource NeonSeparator}"/>
+                    <MenuItem Header="📋  Copy File Name" Click="CopyFileName_Click"
+                              Style="{StaticResource NeonMenuItem}"/>
+                    <MenuItem Header="📋  Copy Row (TSV)" Click="CopyRowTsv_Click"
+                              Style="{StaticResource NeonMenuItem}"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Replace Time (IT)" Binding="{Binding ReplaceTimestamp, Converter={StaticResource RomeTimestamp}}" Width="175">
                     <DataGridTextColumn.ElementStyle>

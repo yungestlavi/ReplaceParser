@@ -50,6 +50,36 @@ namespace SSForensic.Views
             }
         }
 
+        private void CopyOriginalPath_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetSelectedRecord() is { } rec && !string.IsNullOrEmpty(rec.OriginalPath))
+                Clipboard.SetText(rec.OriginalPath);
+        }
+
+        private void CopyReplacementPath_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetSelectedRecord() is { } rec && !string.IsNullOrEmpty(rec.ReplacementPath))
+                Clipboard.SetText(rec.ReplacementPath);
+        }
+
+        private void CopyFileName_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetSelectedRecord() is { } rec && !string.IsNullOrEmpty(rec.ReplacementFileName))
+                Clipboard.SetText(rec.ReplacementFileName);
+        }
+
+        private void CopyRowTsv_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetSelectedRecord() is { } rec)
+            {
+                string ts = rec.ReplaceTimestamp.HasValue
+                    ? rec.ReplaceTimestamp.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                    : "";
+                Clipboard.SetText(
+                    $"{ts}\t{rec.ReplacementFileName}\t{rec.OriginalPath}\t{rec.ReplacementPath}\t{rec.ReplaceTypeLabel}");
+            }
+        }
+
         private static DataGridRow FindParentRow(DependencyObject d)
         {
             while (d != null && d is not DataGridRow)
