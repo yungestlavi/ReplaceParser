@@ -897,36 +897,30 @@ namespace SSForensic.Services
             string? canonical = File.Exists(replacementPath) ? replacementPath
                               : File.Exists(originalPath) ? originalPath : null;
 
-            // FAST PATH: files living under a known Windows system root are trusted OS
-            // artefacts and get discarded later anyway. Skip the expensive hashing and
-            // Authenticode verification for them - this is the single biggest speed win
-            // on long-running machines, where most journal churn is system files.
+            // FAST PATH: files under a known Windows system root — skip expensive
+            // Authenticode hashing but still run pattern matching and show the record.
             if (canonical != null && IsKnownWindowsPath(canonical))
             {
-                record.ReplacementTrust = FileTrust.Legit;
-                record.OriginalTrust = FileTrust.Legit;
-                record.ReplacementSigner = "(windows system path)";
-                record.OriginalSigner = "(windows system path)";
-                record.SignatureVerdict = "SYSTEM";
-                record.SignatureDetails = "Skipped: file resides under a Windows system directory.";
-                record.SignatureChainTrusted = true;
-                record.SignatureTimeValid = true;
-                record.SignatureAuthenticodeValid = true;
+                record.ReplacementTrust = FileTrust.Unknown;
+                record.OriginalTrust    = FileTrust.Unknown;
+                record.ReplacementSigner = "";
+                record.OriginalSigner    = "";
+                record.SignatureVerdict  = "SYSTEM";
+                record.SignatureDetails  = "System path — signature check skipped.";
                 foreach (var ev in events.OrderBy(e => e.Timestamp))
                 {
                     record.Evidence.Add(new ForensicEvidence
                     {
-                        Source = EvidenceSource.UsnJournal,
-                        Timestamp = ev.Timestamp,
+                        Source      = EvidenceSource.UsnJournal,
+                        Timestamp   = ev.Timestamp,
                         Description = $"[{ev.ReasonString}] {ev.FileName}",
-                        RawData = $"USN={ev.Usn} FRN={ev.FileReferenceNumber} Reason=0x{ev.Reason:X8}"
+                        RawData     = $"USN={ev.Usn} FRN={ev.FileReferenceNumber} Reason=0x{ev.Reason:X8}"
                     });
                 }
                 var reasonList738 = events.OrderBy(e => e.Usn).Select(e => e.ReasonString).ToList();
-                var tsList738    = events.OrderBy(e => e.Usn).Select(e => e.Timestamp).ToList();
+                var tsList738     = events.OrderBy(e => e.Usn).Select(e => e.Timestamp).ToList();
                 record.DetectedReplaceType = DetectReplaceType(reasonList738, tsList738);
                 DebugLog($"[FASTPATH] {record.ReplacementFileName} | Reasons=[{string.Join(" || ", reasonList738)}] | Detected={record.DetectedReplaceType}");
-                // Discard records whose USN sequence doesn't match any known replace pattern.
                 if (record.DetectedReplaceType == ReplaceType.Unknown) return null;
                 return record;
             }

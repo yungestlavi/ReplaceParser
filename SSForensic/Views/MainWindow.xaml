@@ -20,6 +20,11 @@
         <vm:MainViewModel/>
     </Window.DataContext>
 
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="5"
+                      GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
     <Window.Resources>
         <local:ReplaceTypeToBrushConverter       x:Key="ReplaceTypeToBrush"/>
         <local:ReplaceTypeToDescriptionConverter x:Key="ReplaceTypeToDescription"/>
