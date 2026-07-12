@@ -60,19 +60,24 @@
 
                     <!-- App icon + neon title -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
-                        <Image Source="/app.ico" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Replace Parser" VerticalAlignment="Center"
+                        <Image Source="/app.ico" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <!-- "ReplaceParser" in neon violet -->
+                        <TextBlock Text="ReplaceParser" VerticalAlignment="Center"
                                    FontFamily="Segoe UI Black, Segoe UI Bold" FontSize="14" FontWeight="Black">
                             <TextBlock.Foreground>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#D070FF" Offset="0"/>
-                                    <GradientStop Color="#FF80FF" Offset="1"/>
+                                    <GradientStop Color="#C864FF" Offset="0"/>
+                                    <GradientStop Color="#F080FF" Offset="1"/>
                                 </LinearGradientBrush>
                             </TextBlock.Foreground>
                             <TextBlock.Effect>
-                                <DropShadowEffect Color="#C050FF" BlurRadius="14" ShadowDepth="0" Opacity="0.9"/>
+                                <DropShadowEffect Color="#C050FF" BlurRadius="14" ShadowDepth="0" Opacity="0.85"/>
                             </TextBlock.Effect>
                         </TextBlock>
+                        <!-- " made by Lavi" in muted white -->
+                        <TextBlock Text=" made by Lavi" VerticalAlignment="Center"
+                                   FontFamily="Segoe UI" FontSize="12" FontWeight="Normal"
+                                   Foreground="#8080A0"/>
                     </StackPanel>
 
                     <!-- Window controls: minimize / maximize / close -->
@@ -382,139 +387,125 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <Border Grid.Row="0" Background="#2F3236" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="10,6">
+                <Border Grid.Row="0" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1" Padding="16,8">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#0A0812" Offset="0"/>
+                            <GradientStop Color="#0D0D14" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
                     <DockPanel>
-                        <TextBlock DockPanel.Dock="Left" Text="Details" Foreground="{StaticResource TextSecondary}"/>
+                        <TextBlock DockPanel.Dock="Left" Text="Details" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
                         <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right"
                                    Foreground="{StaticResource TextMuted}" FontFamily="Consolas" FontSize="11"
-                                   Text="{Binding SelectedRecord.ReplacementFileName, StringFormat='Selected: {0}'}"/>
+                                   VerticalAlignment="Center"
+                                   Text="{Binding SelectedRecord.ReplacementFileName, StringFormat='→  {0}'}"/>
                     </DockPanel>
                 </Border>
                 <Grid Grid.Row="1" Visibility="{Binding SelectedRecord, Converter={StaticResource BoolToVis}}">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="300" MinWidth="220"/>
-                        <ColumnDefinition Width="340" MinWidth="260"/>
-                        <ColumnDefinition Width="2*" MinWidth="320"/>
+                        <ColumnDefinition Width="*" MinWidth="200"/>
+                        <ColumnDefinition Width="*" MinWidth="200"/>
+                        <ColumnDefinition Width="2*" MinWidth="300"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- ═══ COL 0 — ORIGINAL FILE ═══ -->
-                    <Border Grid.Column="0" Background="{StaticResource BgRow}" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,1,0">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,12">
+                    <Border Grid.Column="0" Background="{StaticResource BgRow}"
+                            BorderBrush="{StaticResource Border1}" BorderThickness="0,0,1,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,14">
                             <StackPanel>
-                                <TextBlock Text="ORIGINAL FILE" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                <TextBlock Text="ORIGINAL FILE" FontSize="9" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextMuted}" Margin="0,0,0,12"/>
 
-                                <!-- Name -->
-                                <TextBlock Text="Name" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                <TextBlock Text="{Binding SelectedRecord.OriginalFileName}" TextWrapping="Wrap"
-                                           FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <TextBlock Text="Name" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2"/>
+                                <TextBlock Text="{Binding SelectedRecord.OriginalFileName}"
+                                           FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
-                                <!-- Path -->
-                                <TextBlock Text="Path" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                <TextBlock Text="{Binding SelectedRecord.OriginalPath}" TextWrapping="Wrap"
-                                           FontFamily="Consolas" FontSize="11" Margin="0,0,0,8"/>
+                                <TextBlock Text="Path" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2"/>
+                                <TextBlock Text="{Binding SelectedRecord.OriginalPath}"
+                                           FontFamily="Consolas" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="#B0B0C8" Margin="0,0,0,12"/>
 
-                                <!-- Trust badge -->
-                                <TextBlock Text="Trust" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                <Border CornerRadius="3" Padding="6,2" HorizontalAlignment="Left" Margin="0,0,0,8"
+                                <TextBlock Text="Trust" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,4"/>
+                                <Border CornerRadius="4" Padding="8,3" HorizontalAlignment="Left" Margin="0,0,0,14"
                                         Background="{Binding SelectedRecord.OriginalTrust, Converter={StaticResource TrustToBadgeBrush}}">
-                                    <TextBlock Text="{Binding SelectedRecord.OriginalTrust}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                    <TextBlock Text="{Binding SelectedRecord.OriginalTrust}"
+                                               FontSize="11" FontWeight="SemiBold" Foreground="White"/>
                                 </Border>
 
-                                <!-- Timestamps -->
-                                <TextBlock Text="Timestamps" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,4"/>
-                                <Grid Margin="0,0,0,2">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Created" Foreground="{StaticResource TextMuted}" FontSize="11"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding SelectedRecord.OriginalCreated, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
-                                               FontFamily="Consolas" FontSize="11"/>
-                                </Grid>
-                                <Grid Margin="0,0,0,2">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Modified" Foreground="{StaticResource TextMuted}" FontSize="11"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding SelectedRecord.OriginalLastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
-                                               FontFamily="Consolas" FontSize="11"/>
-                                </Grid>
-                                <Grid Margin="0,0,0,2">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Accessed" Foreground="{StaticResource TextMuted}" FontSize="11"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding SelectedRecord.OriginalLastAccessed, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
-                                               FontFamily="Consolas" FontSize="11"/>
-                                </Grid>
+                                <Separator Background="{StaticResource Border1}" Margin="0,0,0,12"/>
+                                <TextBlock Text="TIMESTAMPS" FontSize="9" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="Created" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2"/>
+                                <TextBlock Text="{Binding SelectedRecord.OriginalCreated, StringFormat='{}{0:yyyy-MM-dd  HH:mm:ss}'}"
+                                           FontFamily="Consolas" FontSize="11.5" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="Modified" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2"/>
+                                <TextBlock Text="{Binding SelectedRecord.OriginalLastModified, StringFormat='{}{0:yyyy-MM-dd  HH:mm:ss}'}"
+                                           FontFamily="Consolas" FontSize="11.5" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="Accessed" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2"/>
+                                <TextBlock Text="{Binding SelectedRecord.OriginalLastAccessed, StringFormat='{}{0:yyyy-MM-dd  HH:mm:ss}'}"
+                                           FontFamily="Consolas" FontSize="11.5"/>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
 
                     <!-- ═══ COL 1 — REPLACEMENT FILE ═══ -->
-                    <Border Grid.Column="1" Background="{StaticResource BgRowAlt}" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,1,0">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,12">
+                    <Border Grid.Column="1" Background="{StaticResource BgRowAlt}"
+                            BorderBrush="{StaticResource Border1}" BorderThickness="0,0,1,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,14">
                             <StackPanel>
-                                <TextBlock Text="REPLACEMENT FILE" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                <TextBlock Text="REPLACEMENT FILE" FontSize="9" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextMuted}" Margin="0,0,0,12"/>
 
-                                <!-- Name -->
-                                <TextBlock Text="Name" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                <TextBlock Text="{Binding SelectedRecord.ReplacementFileName}" TextWrapping="Wrap"
-                                           FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <TextBlock Text="Name" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2"/>
+                                <TextBlock Text="{Binding SelectedRecord.ReplacementFileName}"
+                                           FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
-                                <!-- Path -->
-                                <TextBlock Text="Path" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                <TextBlock Text="{Binding SelectedRecord.ReplacementPath}" TextWrapping="Wrap"
-                                           FontFamily="Consolas" FontSize="11" Margin="0,0,0,8"/>
+                                <TextBlock Text="Path" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2"/>
+                                <TextBlock Text="{Binding SelectedRecord.ReplacementPath}"
+                                           FontFamily="Consolas" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="#E08080" Margin="0,0,0,12"/>
 
-                                <!-- Trust + Replace Type row -->
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Trust" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                        <Border CornerRadius="3" Padding="6,2" HorizontalAlignment="Left"
+                                <!-- Trust + Replace Type badges -->
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="Trust" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,4"/>
+                                        <Border CornerRadius="4" Padding="8,3" HorizontalAlignment="Left"
                                                 Background="{Binding SelectedRecord.ReplacementTrust, Converter={StaticResource TrustToBadgeBrush}}">
-                                            <TextBlock Text="{Binding SelectedRecord.ReplacementTrust}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                            <TextBlock Text="{Binding SelectedRecord.ReplacementTrust}"
+                                                       FontSize="11" FontWeight="SemiBold" Foreground="White"/>
                                         </Border>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1">
-                                        <TextBlock Text="Replace Type" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                        <Border CornerRadius="3" Padding="6,2" HorizontalAlignment="Left"
+                                        <TextBlock Text="Replace Type" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,4"/>
+                                        <Border CornerRadius="4" Padding="8,3" HorizontalAlignment="Left"
                                                 Background="{Binding SelectedRecord.DetectedReplaceType, Converter={StaticResource ReplaceTypeToBadgeBrush}}">
-                                            <TextBlock Text="{Binding SelectedRecord.ReplaceTypeLabel}" FontSize="11" FontWeight="SemiBold" Foreground="White"
+                                            <TextBlock Text="{Binding SelectedRecord.ReplaceTypeLabel}"
+                                                       FontSize="11" FontWeight="SemiBold" Foreground="White"
                                                        ToolTip="{Binding SelectedRecord.DetectedReplaceType, Converter={StaticResource ReplaceTypeToDescription}}"/>
                                         </Border>
                                     </StackPanel>
                                 </Grid>
 
-                                <!-- Signer -->
-                                <TextBlock Text="Signer" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                <TextBlock Text="{Binding SelectedRecord.ReplacementSigner}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
+                                <Separator Background="{StaticResource Border1}" Margin="0,0,0,12"/>
+                                <TextBlock Text="TIMESTAMPS" FontSize="9" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
 
-                                <!-- Format -->
-                                <TextBlock Text="Format" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                <TextBlock Text="{Binding SelectedRecord.DetectedFormat}" FontSize="11" Margin="0,0,0,8"/>
+                                <TextBlock Text="Replace Time" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2"/>
+                                <TextBlock Text="{Binding SelectedRecord.ReplaceTimestamp, Converter={StaticResource RomeTimestamp}}"
+                                           FontFamily="Consolas" FontSize="11.5" Foreground="#C084FF" Margin="0,0,0,8"/>
 
-                                <!-- SHA256 -->
-                                <TextBlock Text="SHA256" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,0,0,2"/>
-                                <TextBlock Text="{Binding SelectedRecord.ReplacementHash}" TextWrapping="Wrap"
-                                           FontFamily="Consolas" FontSize="10" Opacity="0.8" Margin="0,0,0,8"/>
-
-                                <!-- Signature -->
-                                <Separator Margin="0,4,0,8" Background="{StaticResource Border1}"/>
-                                <TextBlock Text="SIGNATURE" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <TextBlock Text="{Binding SelectedRecord.SignatureVerdict}" FontSize="11" Margin="0,0,0,4"/>
-                                <TextBlock Text="{Binding SelectedRecord.SignatureDetails}" TextWrapping="Wrap"
-                                           FontFamily="Consolas" FontSize="10.5" Opacity="0.8" Margin="0,0,0,8"/>
-
-                                <!-- YARA -->
-                                <Separator Margin="0,4,0,8" Background="{StaticResource Border1}"/>
-                                <TextBlock Text="YARA MATCHES" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <ItemsControl ItemsSource="{Binding SelectedRecord.YaraMatches}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding}" Foreground="#E06C75"
-                                                       FontFamily="Consolas" FontSize="11" Margin="0,1"/>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <TextBlock Text="Signer" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2"/>
+                                <TextBlock Text="{Binding SelectedRecord.ReplacementSigner}"
+                                           FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,8"/>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
@@ -522,26 +513,33 @@
                     <!-- ═══ COL 2 — USN TIMELINE ═══ -->
                     <Border Grid.Column="2" Background="{StaticResource BgRow}">
                         <Grid>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                            <Border Grid.Row="0" Padding="14,10,14,6" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1">
-                                <TextBlock Text="USN TIMELINE" Foreground="{StaticResource TextSecondary}"
-                                           FontSize="10" FontWeight="SemiBold"/>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Padding="16,10" BorderBrush="{StaticResource Border1}" BorderThickness="0,0,0,1">
+                                <TextBlock Text="USN TIMELINE" FontSize="9" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextMuted}"/>
                             </Border>
-                            <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedEvidence}" AutoGenerateColumns="False" IsReadOnly="True"
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedEvidence}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
                                       Background="Transparent" BorderThickness="0"
-                                      RowBackground="{StaticResource BgRow}" AlternatingRowBackground="{StaticResource BgRowAlt}"
-                                      Foreground="{StaticResource TextPrimary}" GridLinesVisibility="Horizontal"
-                                      HorizontalGridLinesBrush="#2A2D33"
-                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                                      CanUserResizeColumns="True" CanUserSortColumns="True"
-                                      materialDesign:DataGridAssist.CellPadding="10,5"
-                                      materialDesign:DataGridAssist.ColumnHeaderPadding="10,5">
+                                      RowBackground="{StaticResource BgRow}"
+                                      AlternatingRowBackground="{StaticResource BgRowAlt}"
+                                      Foreground="{StaticResource TextPrimary}"
+                                      GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="#1E1A30"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      CanUserResizeColumns="True"
+                                      materialDesign:DataGridAssist.CellPadding="12,6"
+                                      materialDesign:DataGridAssist.ColumnHeaderPadding="12,6">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="When" Binding="{Binding Timestamp, StringFormat=HH:mm:ss.fff}" Width="95">
+                                    <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat=HH:mm:ss.fff}" Width="90">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontFamily" Value="Consolas"/>
-                                                <Setter Property="FontSize" Value="11"/>
+                                                <Setter Property="FontSize" Value="11.5"/>
                                                 <Setter Property="Foreground" Value="#7EC07E"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                             </Style>
@@ -556,12 +554,12 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Raw" Binding="{Binding RawData}" Width="200">
+                                    <DataGridTextColumn Header="Raw" Binding="{Binding RawData}" Width="220">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontFamily" Value="Consolas"/>
-                                                <Setter Property="FontSize" Value="10"/>
-                                                <Setter Property="Opacity" Value="0.6"/>
+                                                <Setter Property="FontSize" Value="10.5"/>
+                                                <Setter Property="Foreground" Value="#606080"/>
                                                 <Setter Property="TextWrapping" Value="Wrap"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                             </Style>
