@@ -234,6 +234,12 @@ namespace SSForensic.Services
 
             var renameMap = BuildRenameMap(allRelevant);
 
+            // Build FRN->directory path index from MFT (FSCTL_ENUM_USN_DATA).
+            // This gives us exact file paths from ParentFRN without filesystem scanning.
+            StatusUpdate?.Invoke("Building directory FRN index...");
+            var dirFrnIndex = _usn.BuildDirFrnIndex(driveLetter);
+            StatusUpdate?.Invoke($"FRN index: {dirFrnIndex.Count} entries [{sw.Elapsed.TotalSeconds:F1}s]");
+
             StatusUpdate?.Invoke("Building filesystem index...");
             var wantedNames = candidateUsn.Select(r => r.FileName)
                                           .Concat(renameMap.Values.SelectMany(v => new[] { v.OldName, v.NewName }))
@@ -255,7 +261,7 @@ namespace SSForensic.Services
             }, group =>
             {
                 var ordered = group.OrderBy(r => r.Timestamp).ToList();
-                var rec = BuildReplaceRecord(group.Key, ordered, fileIndex, multiIndex, renameMap);
+                var rec = BuildReplaceRecord(group.Key, ordered, fileIndex, multiIndex, renameMap, dirFrnIndex);
                 if (rec == null)
                 {
                     var names = ordered.Select(o => o.FileName).Distinct(StringComparer.OrdinalIgnoreCase);
@@ -795,70 +801,82 @@ namespace SSForensic.Services
             List<UsnJournalReader.UsnRecord> events,
             Dictionary<string, string> fileIndex,
             Dictionary<string, List<string>> multiIndex,
-            Dictionary<ulong, RenameInfo> renameMap)
+            Dictionary<ulong, RenameInfo> renameMap,
+            Dictionary<ulong, string> dirFrnIndex)
         {
-            string filename = events.Last().FileName;
+            var orderedEvents = events.OrderBy(e => e.Usn).ToList();
+            var firstEvent = orderedEvents.First();
+            var lastEvent  = orderedEvents.Last();
+
+            string filename = lastEvent.FileName;
             if (renameMap.TryGetValue(frn, out var ren)) filename = ren.NewName;
 
-            var orderedEvents = events.OrderBy(e => e.Usn).ToList();
-            var paths = multiIndex.TryGetValue(filename, out var pl) ? pl : new List<string>();
-            string originalPath    = "(file moved or deleted)";
-            string replacementPath = "(file moved or deleted)";
+            // ── PATH RESOLUTION via ParentFRN ────────────────────────────────────
+            // PRIMARY METHOD: use the ParentFileReferenceNumber from the USN journal
+            // to resolve the exact directory path without filesystem scanning.
+            // This works for ALL paths including System32, AppData, custom folders.
+            //
+            // replacementPath = directory of LAST event + current filename
+            // originalPath    = directory of FIRST event + first event filename
+            //                   (for Explorer rename: first filename = old name, same dir)
+            //                   (for Copy/Type/HEX: same dir and name = correct in-place)
 
-            // Primary: use physical file paths found on disk.
-            if (paths.Count >= 2)
+            string ResolveDir(ulong parentFrn)
             {
-                var infos = paths.Select(p =>
-                {
-                    try { var fi = new FileInfo(p); return new { Path = p, Created = fi.CreationTimeUtc, Exists = fi.Exists }; }
-                    catch { return new { Path = p, Created = DateTime.MaxValue, Exists = false }; }
-                }).Where(i => i.Exists).ToList();
-
-                if (infos.Count >= 2)
-                {
-                    originalPath    = infos.OrderBy(i => i.Created).First().Path;
-                    replacementPath = infos.OrderByDescending(i => i.Created).First().Path;
-                }
-                else if (infos.Count == 1) { replacementPath = infos[0].Path; originalPath = infos[0].Path; }
+                if (dirFrnIndex.TryGetValue(parentFrn, out var dir)) return dir;
+                return "";
             }
-            else if (paths.Count == 1) { replacementPath = paths[0]; originalPath = paths[0]; }
-            else if (fileIndex.TryGetValue(filename, out var single)) { replacementPath = single; originalPath = single; }
 
-            // ── PATH FIX ─────────────────────────────────────────────────────────
-            // When original == replacement, try to distinguish source from destination
-            // using the USN event history.
-            if (string.Equals(originalPath, replacementPath, StringComparison.OrdinalIgnoreCase))
+            string replacementDir = ResolveDir(lastEvent.ParentFileReferenceNumber);
+            string originalDir    = ResolveDir(firstEvent.ParentFileReferenceNumber);
+
+            string replacementPath = !string.IsNullOrEmpty(replacementDir)
+                ? Path.Combine(replacementDir, filename)
+                : "(path unknown)";
+
+            // For the original path, use the first event's filename (pre-rename for Explorer)
+            string originalFilename = firstEvent.FileName;
+            string originalPath = !string.IsNullOrEmpty(originalDir)
+                ? Path.Combine(originalDir, originalFilename)
+                : "(path unknown)";
+
+            // FALLBACK: if FRN index didn't resolve the path (e.g. index build failed),
+            // fall back to the old filesystem scan approach.
+            if (replacementPath == "(path unknown)")
             {
-                // Case A: first event has a different filename (rename before replace).
-                var firstEvent    = orderedEvents.First();
-                string firstFilename = firstEvent.FileName;
-
-                if (!string.Equals(firstFilename, filename, StringComparison.OrdinalIgnoreCase))
+                var paths = multiIndex.TryGetValue(filename, out var pl) ? pl : new List<string>();
+                if (paths.Count >= 2)
                 {
-                    // The file was renamed — firstFilename is the pre-rename original.
-                    if (multiIndex.TryGetValue(firstFilename, out var origPaths) && origPaths.Count > 0)
-                        originalPath = origPaths[0];
-                    else if (fileIndex.TryGetValue(firstFilename, out var origSingle))
-                        originalPath = origSingle;
-                    else
-                        originalPath = Path.Combine(
-                            Path.GetDirectoryName(replacementPath) ?? "", firstFilename);
+                    var infos = paths.Select(p =>
+                    {
+                        try { var fi = new FileInfo(p); return new { Path = p, Created = fi.CreationTimeUtc, Exists = fi.Exists }; }
+                        catch { return new { Path = p, Created = DateTime.MaxValue, Exists = false }; }
+                    }).Where(i => i.Exists).ToList();
+
+                    if (infos.Count >= 2)
+                    {
+                        originalPath    = infos.OrderBy(i => i.Created).First().Path;
+                        replacementPath = infos.OrderByDescending(i => i.Created).First().Path;
+                    }
+                    else if (infos.Count == 1)
+                    {
+                        replacementPath = infos[0].Path;
+                        originalPath    = infos[0].Path;
+                    }
                 }
-                // Case B: same filename throughout — for Copy/HEX the original file was
-                // overwritten in-place. We mark the original path as the pre-replace state
-                // of the same file (path is identical, content changed — this is expected).
-                // The USN journal cannot give us the source path since it only records
-                // writes to the destination FRN, not reads from the source.
+                else if (paths.Count == 1) { replacementPath = paths[0]; originalPath = paths[0]; }
+                else if (fileIndex.TryGetValue(filename, out var single)) { replacementPath = single; originalPath = single; }
+                else { replacementPath = "(file moved or deleted)"; originalPath = "(file moved or deleted)"; }
             }
 
             var record = new ReplaceRecord
             {
-                OriginalFileName = filename,
+                OriginalFileName    = originalFilename,
                 ReplacementFileName = filename,
-                OriginalPath = originalPath,
-                ReplacementPath = replacementPath,
-                ReplaceTimestamp = events.Last().Timestamp,
-                DeclaredExtension = Path.GetExtension(filename)
+                OriginalPath        = originalPath,
+                ReplacementPath     = replacementPath,
+                ReplaceTimestamp    = lastEvent.Timestamp,
+                DeclaredExtension   = Path.GetExtension(filename)
             };
 
             // Full per-file USN change history (JournalTrace-style detail view).

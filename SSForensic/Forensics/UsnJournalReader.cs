@@ -248,5 +248,126 @@ namespace SSForensic.Forensics
                 FileAttributes = fileAttr
             };
         }
+
+        // =====================================================================
+        //  DIRECTORY FRN INDEX
+        //  Reads every MFT entry (via FSCTL_ENUM_USN_DATA) and builds a
+        //  FRN -> full path map for directories only.
+        //  This lets BuildReplaceRecord resolve file paths by ParentFRN instead
+        //  of doing a slow filesystem scan.
+        // =====================================================================
+
+        private const uint FSCTL_ENUM_USN_DATA = 0x900B3;
+        private const uint FILE_ATTRIBUTE_DIRECTORY = 0x10;
+
+        public Dictionary<ulong, string> BuildDirFrnIndex(string driveLetter)
+        {
+            // name and parentFRN for every entry (file or dir)
+            var nameMap   = new Dictionary<ulong, string>();
+            var parentMap = new Dictionary<ulong, ulong>();
+
+            string volumePath = $@"\\.\{driveLetter}:";
+            using var handle = CreateFile(
+                volumePath, GENERIC_READ,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+
+            if (handle.IsInvalid) return new Dictionary<ulong, string>();
+
+            // MFT_ENUM_DATA_V0: StartFileReferenceNumber=0, LowUsn=0, HighUsn=MaxValue
+            int enumDataSize = 24;
+            IntPtr enumPtr = Marshal.AllocHGlobal(enumDataSize);
+            try
+            {
+                Marshal.WriteInt64(enumPtr, 0,  0);                    // StartFileReferenceNumber
+                Marshal.WriteInt64(enumPtr, 8,  0);                    // LowUsn
+                Marshal.WriteInt64(enumPtr, 16, long.MaxValue);        // HighUsn
+            }
+            catch { Marshal.FreeHGlobal(enumPtr); return new Dictionary<ulong, string>(); }
+
+            int bufSize = 65536;
+            IntPtr buf = Marshal.AllocHGlobal(bufSize);
+
+            try
+            {
+                while (true)
+                {
+                    bool ok = DeviceIoControl(handle, FSCTL_ENUM_USN_DATA,
+                        enumPtr, (uint)enumDataSize,
+                        buf, (uint)bufSize,
+                        out uint bytesReturned, IntPtr.Zero);
+
+                    if (!ok || bytesReturned <= 8) break;
+
+                    // First 8 bytes = next StartFileReferenceNumber
+                    long nextFrn = Marshal.ReadInt64(buf, 0);
+                    Marshal.WriteInt64(enumPtr, 0, nextFrn);
+
+                    IntPtr pos = IntPtr.Add(buf, 8);
+                    int remaining = (int)bytesReturned - 8;
+
+                    while (remaining >= 60)
+                    {
+                        int recLen = Marshal.ReadInt32(pos, 0);
+                        if (recLen < 60 || recLen > remaining) break;
+
+                        ulong frn    = (ulong)Marshal.ReadInt64(pos, 8);
+                        ulong parent = (ulong)Marshal.ReadInt64(pos, 16);
+                        uint  attr   = (uint)Marshal.ReadInt32(pos, 52);
+                        ushort fnLen = (ushort)Marshal.ReadInt16(pos, 56);
+                        ushort fnOff = (ushort)Marshal.ReadInt16(pos, 58);
+
+                        if (fnLen > 0 && fnOff + fnLen <= recLen)
+                        {
+                            string name = Marshal.PtrToStringUni(IntPtr.Add(pos, fnOff), fnLen / 2) ?? "";
+                            // Store all entries for path reconstruction
+                            if (!nameMap.ContainsKey(frn))
+                            {
+                                nameMap[frn]   = name;
+                                parentMap[frn] = parent;
+                            }
+                        }
+
+                        pos       = IntPtr.Add(pos, recLen);
+                        remaining -= recLen;
+                    }
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(enumPtr);
+                Marshal.FreeHGlobal(buf);
+            }
+
+            // Resolve full paths for all entries by walking parent chain.
+            // Root directory FRN typically has itself as parent.
+            var pathCache = new Dictionary<ulong, string>();
+            string root = $@"{driveLetter}:";
+
+            string Resolve(ulong frn, int depth = 0)
+            {
+                if (depth > 64) return root;
+                if (pathCache.TryGetValue(frn, out var cached)) return cached;
+                if (!nameMap.TryGetValue(frn, out var name)) return root;
+                if (!parentMap.TryGetValue(frn, out var par) || par == frn) { pathCache[frn] = root; return root; }
+                string parentPath = Resolve(par, depth + 1);
+                string full = parentPath == root
+                    ? $@"{root}\{name}"
+                    : $@"{parentPath}\{name}";
+                pathCache[frn] = full;
+                return full;
+            }
+
+            // Build the final directory-only index
+            var dirIndex = new Dictionary<ulong, string>();
+            foreach (var kvp in nameMap)
+            {
+                ulong frn = kvp.Key;
+                string fullPath = Resolve(frn);
+                dirIndex[frn] = fullPath;
+            }
+
+            return dirIndex;
+        }
     }
 }
